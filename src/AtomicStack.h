@@ -99,6 +99,11 @@ class AtomicStack {
     // If CAS fails then the most up to date heap_p is loaded into
     // old_p, and we should reset new_p with the pointer inside old_p
     while(head_p.compare_exchange_strong(old_p, new_p) == false) {
+      // Since old_p is loaded with the newest value we need to check this
+      if(old_p == nullptr) {
+        return false;
+      }
+      
       new_p = old_p->next_p;
     }
 
