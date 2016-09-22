@@ -66,13 +66,16 @@ class AtomicStack {
    * the head pointer
    */
   void Push(const T &data) {
+    // Take the snapshot
+    // Note that we could only take the snapshot once, use it to perform
+    // calculations as if it won't change, and then CAS to check whether the
+    // assumption still holds
     Node *node_p = new Node{data, head_p.load()};
-    Node *old_p = head_p.load();
 
     // Note that the first argument to CAS is a reference which means
     // if CAS fails then it will be updated to the current value of CAS
     // and it could thus be used immediately
-    while(head_p.compare_exchange_strong(old_p, node_p) == false);
+    while(head_p.compare_exchange_strong(node_p->next_p, node_p) == false);
 
     return;
   }
