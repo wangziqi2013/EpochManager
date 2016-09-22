@@ -50,14 +50,14 @@ class AtomicStack {
   // from the stack
   std::atomic<Node *> head_p;
   
+ public:
+   
   /*
    * Constructor() - Initialize head pointer to nullptr
    */
   AtomicStack() :
     head_p{nullptr}
   {}
-  
- public:
 
   /*
    * Push() - Pushes a node into the stack

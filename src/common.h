@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <cassert>
+
 #define DEBUG_PRINT
 
 #ifdef DEBUG_PRINT
