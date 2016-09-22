@@ -1,7 +1,6 @@
 
 CXX=g++-5
-CXX_FLAGS=-g -Wall -Werror -std=c++11
-
+CXX_FLAGS=-g -Wall -Werror -std=c++11 -pthread
 
 benchmark: ./src/AtomicStack.cpp ./test/benchmark.cpp
 	$(CXX) $(CXX_FLAGS) -O3 -DNDEBUG $^ -o ./bin/benchmark

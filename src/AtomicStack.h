@@ -80,10 +80,16 @@ class AtomicStack {
   /*
    * Pop() - Pop an element out of the stack and assign it to the reference
    *
-   * The function changes the argument
+   * The function changes the argument. Also if the stack is empty then
+   * this function returns false
    */
-  void Pop(T &data) {
+  bool Pop(T &data) {
     Node *old_p = head_p.load();
+    
+    if(old_p == nullptr) {
+      return false;
+    }
+    
     Node *new_p = old_p->next_p;
 
     // Keeps CAS on the head pointer
@@ -97,7 +103,7 @@ class AtomicStack {
 
     // Need GC here...
 
-    return;
+    return true;
   }
   
   /*

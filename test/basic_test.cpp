@@ -14,11 +14,14 @@ void BasicTest() {
     as.Push(i);
   }
   
-  for(uint64_t i = 99;i >= 0;i--) {
+  for(uint64_t i = 0;i < 100;i++) {
     uint64_t top;
-    as.Pop(top);
+    uint64_t expected = 99 - i;
+    bool ret = as.Pop(top);
     
-    assert(top == i);
+    assert(ret == true);
+    
+    assert(top == expected);
   }
   
   return;
@@ -60,7 +63,7 @@ void ThreadTest(int thread_num, int op_num) {
 
 int main() {
   BasicTest();
-  ThreadTest();
+  ThreadTest(16, 100);
   
   return 0;
 }
