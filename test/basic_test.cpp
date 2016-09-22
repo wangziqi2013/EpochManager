@@ -1,6 +1,5 @@
 
 #include "../src/AtomicStack.h"
-#include <thread>
 
 using namespace peloton;
 using namespace index;
@@ -27,27 +26,35 @@ void BasicTest() {
   return;
 }
 
-void ThreadTest(int thread_num, int op_num) {
+void ThreadTest(uint64_t thread_num, uint64_t op_num) {
   dbg_printf("========== Thread Test ==========\n");
   
-  AtomicStack<int> as{};
+  AtomicStack<uint64_t> as{};
   
-  auto push_func = [&as, thread_num, op_num](uint64_t id) {
-                     for(int i = static_cast<int>(id);i < thread_num * op_num;i += thread_num) {
+  // This counts the number of push operation we have performed
+  std::atomic<uint64_t> counter;
+  counter.store(0);
+  
+  auto push_func = [&as, &counter, thread_num, op_num](uint64_t id) {
+                     for(uint64_t i = id;i < thread_num * op_num;i += thread_num) {
                        as.Push(i);
+                       
+                       // Increase the counter atomically
+                       counter.fetch_add(1);
                      }
                    };
 
   // We use this to count what we have fetched from the stack
-  std::atomic<int> sum;
+  std::atomic<uint64_t> sum;
   sum.store(0);
+  counter.store(0);
 
-  auto pop_func = [&as, &sum, thread_num, op_num](uint64_t id) {
-                    for(int i = 0;i < op_num;i++) {
-                      int data;
+  auto pop_func = [&as, &sum, &counter, thread_num, op_num](uint64_t id) {
+                    for(uint64_t i = 0;i < op_num;i++) {
+                      uint64_t data;
                       bool ret = as.Pop(data);
                       
-                      // The data must be valid
+                      // The operation must success
                       assert(ret == true);
                       
                       // Atomically adding the poped value onto the atomic
@@ -55,12 +62,17 @@ void ThreadTest(int thread_num, int op_num) {
                     }
                   };
                   
+  // Let threads start
   StartThreads(thread_num, push_func);
+  
+  // We must have performed exactly this number of operations
+  assert(counter.load() == thread_num * op_num);
+  
   StartThreads(thread_num, pop_func);
   
-  int expected = (op_num * thread_num) * (op_num * thread_num - 1) / 2;
+  uint64_t expected = (op_num * thread_num) * (op_num * thread_num - 1) / 2;
   
-  dbg_printf("Sum = %d; Expected = %d\n", sum.load(), expected);
+  dbg_printf("Sum = %lu; Expected = %lu\n", sum.load(), expected);
   assert(sum.load() == expected);
   
   return;
@@ -68,7 +80,7 @@ void ThreadTest(int thread_num, int op_num) {
 
 int main() {
   BasicTest();
-  ThreadTest(16, 2);
+  ThreadTest(4, 2000000);
   
   return 0;
 }
