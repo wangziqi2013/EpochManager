@@ -80,6 +80,9 @@ void ThreadTest(uint64_t thread_num, uint64_t op_num) {
 
 int main() {
   BasicTest();
+  // Many threads and small number of data
+  ThreadTest(1024, 10);
+  // Many data and smaller number of threads
   ThreadTest(4, 2000000);
   
   return 0;
