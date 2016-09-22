@@ -55,15 +55,17 @@ void ThreadTest(int thread_num, int op_num) {
   StartThreads(thread_num, push_func);
   StartThreads(thread_num, pop_func);
   
-  dbg_printf("Sum = %d\n", sum.load());
-  assert(sum.load() == (op_num * thread_num));
+  int expected = (op_num * thread_num) * (op_num * thread_num - 1) / 2;
+  
+  dbg_printf("Sum = %d; Expected = %d\n", sum.load(), expected);
+  assert(sum.load() == expected);
   
   return;
 }
 
 int main() {
   BasicTest();
-  ThreadTest(16, 100);
+  ThreadTest(16, 2);
   
   return 0;
 }
