@@ -3,7 +3,8 @@
 
 #include <cassert>
 #include <thread>
-#incldue <cstdio>
+#include <cstdio>
+#include <vector>
 
 #define DEBUG_PRINT
 
