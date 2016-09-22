@@ -45,7 +45,10 @@ void ThreadTest(int thread_num, int op_num) {
   auto pop_func = [&as, &sum, thread_num, op_num](uint64_t id) {
                     for(int i = 0;i < op_num;i++) {
                       int data;
-                      as.Pop(data);
+                      bool ret = as.Pop(data);
+                      
+                      // The data must be valid
+                      assert(ret == true);
                       
                       // Atomically adding the poped value onto the atomic
                       sum.fetch_add(data);
