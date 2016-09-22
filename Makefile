@@ -4,7 +4,7 @@ CXX_FLAGS=-g -Wall -Werror -std=c++11
 
 
 benchmark: ./src/AtomicStack.cpp ./test/benchmark.cpp
-	$(CXX) $(CXXFLAGS) -O3 -DNDEBUG $^ -o ./bin/benchmark
+	$(CXX) $(CXX_FLAGS) -O3 -DNDEBUG $^ -o ./bin/benchmark
 
 prepare:
 	@mkdir -p build
