@@ -57,6 +57,8 @@ class AtomicStack {
     head_p{nullptr}
   {}
   
+ public:
+
   /*
    * Push() - Pushes a node into the stack
    *
@@ -64,12 +66,39 @@ class AtomicStack {
    * the head pointer
    */
   void Push(const T &data) {
-    Node node{data, head_p.load()};
-    
+    Node *node_p = new Node{data, head_p.load()};
+    Node *old_p = head_p.load();
+
+    // Note that the first argument to CAS is a reference which means
+    // if CAS fails then it will be updated to the current value of CAS
+    // and it could thus be used immediately
+    while(head_p.compare_exchange_strong(old_p, node_p) == false);
+
+    return;
   }
-  
- public:
-   
+
+  /*
+   * Pop() - Pop an element out of the stack and assign it to the reference
+   *
+   * The function changes the argument
+   */
+  void Pop(T &data) {
+    Node *old_p = head_p.load();
+    Node *new_p = old_p->next_p;
+
+    // Keeps CAS on the head pointer
+    // If CAS fails then the most up to date heap_p is loaded into
+    // old_p, and we should reset new_p with the pointer inside old_p
+    while(head_p.compare_exchange_strong(old_p, new_p) == false) {
+      new_p = old_p->next_p;
+    }
+
+    data = old_p->data;
+
+    // Need GC here...
+
+    return;
+  }
 };
 
 } // namespace index
