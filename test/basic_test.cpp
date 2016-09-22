@@ -78,6 +78,75 @@ void ThreadTest(uint64_t thread_num, uint64_t op_num) {
   return;
 }
 
+void MixedTest(uint64_t thread_num, uint64_t op_num) {
+  dbg_printf("========== Mixed Test ==========\n");
+
+  // Make sure thread number is an even number otherwise exit
+  if((thread_num % 2) != 0) {
+    dbg_printf("MixedTest requires thread_num being an even number!\n");
+    
+    return;
+  }
+
+  AtomicStack<uint64_t> as{};
+
+  // This counts the number of push operation we have performed
+  std::atomic<uint64_t> counter;
+  // We use this to count what we have fetched from the stack
+  std::atomic<uint64_t> sum;
+  
+  sum.store(0);
+  counter.store(0);
+
+  auto func = [&as, &counter, thread_num, op_num](uint64_t id) {
+                // For id = 0, 2, 4, 6, 8 keep popping until op_num
+                // operations have succeeded
+                if((id % 2) == 0) {
+                  for(uint64_t i = 0;i < op_num;i++) {
+                    while(1) {
+                      bool ret;
+                      uint64_t data;
+                           
+                      ret = as.Pop(data);
+                      if(ret == true) {
+                        sum.fetch_add(data);
+                        break;
+                      }
+                           
+                    }
+                  }
+                } else {
+                  // id = 1, 3, 5, 7, 9, ..
+                  // but we actually make them 0, 1, 2, 3, 4
+                  // such that the numbers pushed into are consecutive
+                  id = (id - 1) >> 1;
+                  thread_num >>= 1;
+                  for(uint64_t i = id;i < thread_num * op_num;i += thread_num) {
+                    as.Push(i);
+
+                    // Increase the counter atomically
+                    counter.fetch_add(1);
+                  }
+                }
+              };
+
+  // Let threads start
+  StartThreads(thread_num, func);
+
+  // Make the following computation easier
+  thread_num >>= 1;
+
+  // We must have performed exactly this number of operations
+  assert(counter.load() == (thread_num * op_num);
+
+  uint64_t expected = (op_num * thread_num) * (op_num * thread_num - 1) / 2;
+
+  dbg_printf("Sum = %lu; Expected = %lu\n", sum.load(), expected);
+  assert(sum.load() == expected);
+
+  return;
+}
+
 int main() {
   BasicTest();
   // Many threads and small number of data
@@ -85,5 +154,6 @@ int main() {
   // Many data and smaller number of threads
   ThreadTest(4, 2000000);
   
+  MixedTest()
   return 0;
 }
