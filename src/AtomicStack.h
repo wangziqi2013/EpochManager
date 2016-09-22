@@ -6,6 +6,9 @@
 #include <vector>
 #include <cstdio>
 
+namespace peloton {
+namespace index {
+
 /*
  * AtomicStack - A lock-free stack that supports concurrent access of multiple
  *               threads
@@ -25,3 +28,6 @@ class AtomicStack {
  public:
    
 };
+
+} // namespace index
+} // namespace peloton
