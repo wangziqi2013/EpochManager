@@ -99,6 +99,18 @@ class AtomicStack {
 
     return;
   }
+  
+  /*
+   * Top() - Access the top node of the stack at the moment the exeuting
+   *         thread loads the head
+   */
+  void Top(T &data) {
+    // Start epoch protection
+    data = head_p->load()->data;
+    // End epoch protection
+    
+    return;
+  }
 };
 
 } // namespace index
