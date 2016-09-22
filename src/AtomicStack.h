@@ -40,8 +40,9 @@ class AtomicStack {
     /*
      * Constructor - Initializes data member
      */
-    Node(const T &p_data) :
-      data{p_data}
+    Node(const T &p_data, Node *p) :
+      data{p_data},
+      next_p{p}
     {}
   };
   
@@ -50,10 +51,21 @@ class AtomicStack {
   std::atomic<Node *> head_p;
   
   /*
+   * Constructor() - Initialize head pointer to nullptr
+   */
+  AtomicStack() :
+    head_p{nullptr}
+  {}
+  
+  /*
    * Push() - Pushes a node into the stack
+   *
+   * Push operation always succeeds no matter what is the value of
+   * the head pointer
    */
   void Push(const T &data) {
-    Node node{data};
+    Node node{data, head_p.load()};
+    
   }
   
  public:
