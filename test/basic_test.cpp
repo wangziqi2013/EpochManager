@@ -29,17 +29,17 @@ void ThreadTest(int thread_num, int op_num) {
   
   AtomicStack<int> as{};
   
-  auto push_func = [&as, op_num](uint64_t id) {
+  auto push_func = [&as, thread_num, op_num](uint64_t id) {
                      for(int i = static_cast<int>(id);i < thread_num * op_num;i += thread_num) {
                        as.Push(i);
                      }
-                   }
+                   };
 
   // We use this to count what we have fetched from the stack
   std::atomic<int> sum;
   sum.store(0);
 
-  auto pop_func = [&as, &sum, op_num](uint64_t id) {
+  auto pop_func = [&as, &sum, thread_num, op_num](uint64_t id) {
                     for(int i = 0;i < op_num;i++) {
                       int data;
                       as.Pop(data));
@@ -47,7 +47,7 @@ void ThreadTest(int thread_num, int op_num) {
                       // Atomically adding the poped value onto the atomic
                       sum.fetch_add(data);
                     }
-                  }
+                  };
                   
   StartThreads(thread_num, push_func);
   StartThreads(thread_num, pop_func);
