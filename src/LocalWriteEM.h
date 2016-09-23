@@ -1,6 +1,8 @@
 
 #include "common.h"
 
+#define CACHE_LINE_SIZE 64
+
 /*
  * class PaddedData() - Pad a data type to a certain fixed length by appending
  *                      extra bytes after useful data field
@@ -11,6 +13,11 @@
 template <typename T, uint64_t length>
 class PaddedData {
  public:
+  // Define few compile time constants
+  static constexpr uint64_t data_size = sizeof(T);
+  static constexpr uint64_t padding_size = length - sizeof(T);
+  static constexpr uint64_t total_size = length;
+  
   T data;
   
   /*
@@ -19,7 +26,7 @@ class PaddedData {
   operator T() const { return data; }
  private:
   // This is the padding part
-  char padding[length - sizeof(T)];
+  char padding[padding_size];
 };
 
 /*
@@ -59,4 +66,50 @@ class LocalWriteEM {
   LocalWriteEM(LocalWriteEM &&) = delete;
   LocalWriteEM &operator=(const LocalWriteEM &) = delete;
   LocalWriteEM &operator=(LocalWriteEM &&) = delete;
+  
+  // This is a map that records the pointer to instances being used
+  // and memory addresses being allocated
+  // The first is used for construction and destruction, while the latter
+  // are used for freeing the memory chunk
+  static std::unordered_map<LocalWriteEM *, LocalWriteEM *> instance_map;
+  
+  /*
+   * GetInstance() - Get an instance of the epoch manager
+   *
+   * We explicitly allcate a chunk of memory from the heap and align
+   * it to the 64 byte cache line boundary by always allocating one
+   * more slots
+   *
+   * This function is not thread-safe so please only call it under a
+   * single threaded environment
+   */
+  static LocalWriteEM *GetInstance() {
+    char *p = static_cast<char *>(malloc(sizeof()));
+  }
+  
+  /*
+   * FreeInstance() - Calls destructor on the pointer and free it
+   *
+   * Note that this function is not thread-safe - please call it
+   * only during single threaded destruction
+   */
+  static void FreeInstance(LocalWriteEM *p) {
+    p->~LocalWriteEM();
+    
+    auto it = instance_map.find(p);
+    
+    // This is only valid when debug option is on
+    // We use this for debugging and it will be removed by dead code
+    // elimination during optimization
+    if(it == instance_map.end()) {
+      dbg_printf("Invalid LocalWriteEM pointer @ %p\n", p);
+      
+      assert(false);
+    }
+    
+    // Free the original raw pointer
+    free(it->second);
+    
+    return;
+  }
 };
