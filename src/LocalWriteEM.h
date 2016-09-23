@@ -3,6 +3,9 @@
 
 #define CACHE_LINE_SIZE 64
 
+template<uint64_t core_num>
+class LocalWriteEMFactory;
+
 /*
  * class PaddedData() - Pad a data type to a certain fixed length by appending
  *                      extra bytes after useful data field
@@ -48,6 +51,7 @@ class PaddedData {
  */
 template<uint64_t core_num>
 class LocalWriteEM {
+  friend class LocalWriteEMFactory<core_num>;
  private:
   // They are stored as an array, and we pad it to 64 bytes so that the
   // structure could be shared among cache lines
@@ -57,11 +61,19 @@ class LocalWriteEM {
   // and disallow arbitrary initialization
   PaddedData<std::atomic<uint64_t>, 64> data[core_num];
   
+  /*
+   * Constructor - This is the only valid way of constructing an instance
+   */
+  LocalWriteEM() {
+    dbg_printf("Constructor for %lu cores called\n", core_num);
+    
+    return;
+  }
+  
  public:
    
   // Disallow any form of copying and construction without explicitly
-  // aligning it to 64 byte boundary
-  LocalWriteEM() = delete;
+  // aligning it to 64 byte boundary by the public
   LocalWriteEM(const LocalWriteEM &) = delete;
   LocalWriteEM(LocalWriteEM &&) = delete;
   LocalWriteEM &operator=(const LocalWriteEM &) = delete;
@@ -110,7 +122,7 @@ class LocalWriteEMFactory {
     // insertion must be a success
     // Map from "q" to "p", i.e. from adjusted address to allocated address
     auto it = instance_map.insert(std::make_pair(q, static_cast<void *>(p)));
-    assert(it.second == true);
+    assert(it.second == true); (void)it;
     
     // At last call constructor for the class
     new (q) LocalWriteEM<core_num>{};
