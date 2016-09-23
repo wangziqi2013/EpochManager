@@ -157,6 +157,6 @@ int main() {
   // Many data and smaller number of threads
   ThreadTest(4, 2000000);
   
-  MixedTest(32, 100);
+  MixedTest(32, 100000);
   return 0;
 }

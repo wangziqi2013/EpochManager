@@ -2,7 +2,7 @@
 CXX=g++-5
 CXX_FLAGS=-g -Wall -Werror -std=c++11 -pthread
 
-benchmark: ./src/AtomicStack.cpp ./test/benchmark.cpp
+benchmark: ./src/AtomicStack.cpp ./test/benchmark.cpp ./src/LocalWriteEM.cpp
 	$(CXX) $(CXX_FLAGS) -O3 -DNDEBUG $^ -o ./bin/benchmark
 
 basic_test: ./src/AtomicStack.cpp ./test/basic_test.cpp

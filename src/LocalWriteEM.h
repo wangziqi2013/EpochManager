@@ -1,4 +1,6 @@
 
+#include "common.h"
+
 /*
  * class PaddedData() - Pad a data type to a certain fixed length by appending
  *                      extra bytes after useful data field
@@ -6,7 +8,7 @@
  * The basic constraint is that the length of the padded structure must be
  * greater than or equal to the streucture being padded
  */
-template <typename T, size_t length>
+template <typename T, uint64_t length>
 class PaddedData {
  public:
   T data;
@@ -37,8 +39,24 @@ class PaddedData {
  * the minimum live worker thread's epoch to reclaim garbage nodes whose
  * epoch of deletion < the epoch of oldest living worker thread
  */
-template<size_t core_num>
+template<uint64_t core_num>
 class LocalWriteEM {
  private:
-  PaddedData()
+  // They are stored as an array, and we pad it to 64 bytes so that the
+  // structure could be shared among cache lines
+  // Note: In order for this to work, the class itself must also
+  // be allocated on 64 byte aligned memory address
+  // To achieve this we use a static member function to do initialization
+  // and disallow arbitrary initialization
+  PaddedData<std::atomic<uint64_t>, 64> data[core_num];
+  
+ public:
+   
+  // Disallow any form of copying and construction without explicitly
+  // aligning it to 64 byte boundary
+  LocalWriteEM() = delete;
+  LocalWriteEM(const LocalWriteEM &) = delete;
+  LocalWriteEM(LocalWriteEM &&) = delete;
+  LocalWriteEM &operator=(const LocalWriteEM &) = delete;
+  LocalWriteEM &operator=(LocalWriteEM &&) = delete;
 };
