@@ -2,6 +2,9 @@
 #include "../src/AtomicStack.h"
 #include "../src/LocalWriteEM.h"
 
+// This must be instanciated in the translation unit where it is
+// used. Otherwise the compiler is not able to know its existence
+// which causes the linker to complain
 template <uint64_t core_num>
 std::unordered_map<void *, void *>
 LocalWriteEMFactory<core_num>::instance_map{};

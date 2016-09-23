@@ -59,13 +59,22 @@ class LocalWriteEM {
   // be allocated on 64 byte aligned memory address
   // To achieve this we use a static member function to do initialization
   // and disallow arbitrary initialization
-  PaddedData<std::atomic<uint64_t>, 64> data[core_num];
+  PaddedData<std::atomic<uint64_t>, CACHE_LINE_SIZE> data[core_num];
   
   /*
    * Constructor - This is the only valid way of constructing an instance
    */
   LocalWriteEM() {
-    dbg_printf("Constructor for %lu cores called\n", core_num);
+    dbg_printf("C'tor for %lu cores called. p = %p\n", core_num, this);
+    
+    return;
+  }
+  
+  /*
+   * Destructor - This could only be called by the factory class
+   */
+  ~LocalWriteEM() {
+    dbg_printf("D'tor for %lu cores called. p = %p\n", core_num, this);
     
     return;
   }
@@ -108,6 +117,8 @@ class LocalWriteEMFactory {
   static LocalWriteEM<core_num> *GetInstance() {
     char *p = reinterpret_cast<char *>(malloc(sizeof(LocalWriteEM<core_num>) +
                                               CACHE_LINE_SIZE));
+                                              
+    dbg_printf("Malloc() returns p = %p\n", p);
     
     // 0xFFFF FFFF FFFF FFC0
     const uint64_t cache_line_mask = ~(CACHE_LINE_SIZE - 1);
