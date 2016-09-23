@@ -102,11 +102,13 @@ class LocalWriteEMFactory {
     
     // If p is not aligned to 64 byte boundary then make it aligned
     // If it is aligned then this does not change it
-    void *q = (p + CACHE_LINE_SIZE - 1) & cache_line_mask;
+    void *q = reinterpret_cast<void *>(
+                reinterpret_cast<uint64_t>(
+                  p + CACHE_LINE_SIZE - 1) & cache_line_mask);
     
     // Insert it into the map and since it does not exist yet the
     // insertion must be a success
-    // Map from "q" to "p"
+    // Map from "q" to "p", i.e. from adjusted address to allocated address
     auto it = instance_map.insert(std::make_pair(q, static_cast<void *>(p)));
     assert(it.second == true);
     
@@ -120,8 +122,8 @@ class LocalWriteEMFactory {
    * only during single threaded destruction
    */
   static void FreeInstance(void *p) {
-    // Call destructor
-    p->~LocalWriteEM<core_num>();
+    // Call destructor after casting it to appropriate type
+    reinterpret_cast<LocalWriteEM<core_num> *>(p)->~LocalWriteEM<core_num>();
 
     auto it = instance_map.find(p);
 
