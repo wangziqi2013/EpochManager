@@ -112,6 +112,9 @@ class LocalWriteEMFactory {
     auto it = instance_map.insert(std::make_pair(q, static_cast<void *>(p)));
     assert(it.second == true);
     
+    // At last call constructor for the class
+    new (q) LocalWriteEM<core_num>{};
+    
     return reinterpret_cast<LocalWriteEM<core_num> *>(q);
   }
 
@@ -127,14 +130,9 @@ class LocalWriteEMFactory {
 
     auto it = instance_map.find(p);
 
-    // This is only valid when debug option is on
-    // We use this for debugging and it will be removed by dead code
-    // elimination during optimization
-    if(it == instance_map.end()) {
-      dbg_printf("Invalid LocalWriteEM pointer @ %p\n", p);
-
-      assert(false);
-    }
+    // Since it must be a valid allocated pointer we should always be able
+    // to find it
+    assert(it != instance_map.end());
 
     // Free the original raw pointer
     free(it->second);
