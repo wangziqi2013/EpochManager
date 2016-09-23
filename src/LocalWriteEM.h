@@ -66,13 +66,23 @@ class LocalWriteEM {
   LocalWriteEM(LocalWriteEM &&) = delete;
   LocalWriteEM &operator=(const LocalWriteEM &) = delete;
   LocalWriteEM &operator=(LocalWriteEM &&) = delete;
-  
+};
+
+/*
+ * class LocalWriteEMFactory - Factory class for constructing EM instances
+ *
+ * This class should be used as the only way of constructing and destroying
+ * a LocalWriteEM instance
+ */
+template<uint64_t core_num>
+class LocalWriteEMFactory {
+ public:
   // This is a map that records the pointer to instances being used
   // and memory addresses being allocated
   // The first is used for construction and destruction, while the latter
   // are used for freeing the memory chunk
-  static std::unordered_map<LocalWriteEM *, LocalWriteEM *> instance_map;
-  
+  static std::unordered_map<void *, void *> instance_map;
+
   /*
    * GetInstance() - Get an instance of the epoch manager
    *
@@ -83,33 +93,50 @@ class LocalWriteEM {
    * This function is not thread-safe so please only call it under a
    * single threaded environment
    */
-  static LocalWriteEM *GetInstance() {
-    char *p = static_cast<char *>(malloc(sizeof()));
+  static LocalWriteEM<core_num> *GetInstance() {
+    char *p = reinterpret_cast<char *>(malloc(sizeof(LocalWriteEM<core_num>) +
+                                              CACHE_LINE_SIZE));
+    
+    // 0xFFFF FFFF FFFF FFC0
+    const uint64_t cache_line_mask = ~(CACHE_LINE_SIZE - 1);
+    
+    // If p is not aligned to 64 byte boundary then make it aligned
+    // If it is aligned then this does not change it
+    void *q = (p + CACHE_LINE_SIZE - 1) & cache_line_mask;
+    
+    // Insert it into the map and since it does not exist yet the
+    // insertion must be a success
+    // Map from "q" to "p"
+    auto it = instance_map.insert(std::make_pair(q, static_cast<void *>(p)));
+    assert(it.second == true);
+    
+    return reinterpret_cast<LocalWriteEM<core_num> *>(q);
   }
-  
+
   /*
    * FreeInstance() - Calls destructor on the pointer and free it
    *
    * Note that this function is not thread-safe - please call it
    * only during single threaded destruction
    */
-  static void FreeInstance(LocalWriteEM *p) {
-    p->~LocalWriteEM();
-    
+  static void FreeInstance(void *p) {
+    // Call destructor
+    p->~LocalWriteEM<core_num>();
+
     auto it = instance_map.find(p);
-    
+
     // This is only valid when debug option is on
     // We use this for debugging and it will be removed by dead code
     // elimination during optimization
     if(it == instance_map.end()) {
       dbg_printf("Invalid LocalWriteEM pointer @ %p\n", p);
-      
+
       assert(false);
     }
-    
+
     // Free the original raw pointer
     free(it->second);
-    
+
     return;
   }
 };
