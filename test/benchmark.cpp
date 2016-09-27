@@ -18,7 +18,9 @@ int main() {
   // Otherwise it fails 64 bit alignment test
   assert(((uint64_t)p % 64) == 0);
   
-  dbg_printf("ElementType size = %lu\n", sizeof typename decltype(*p)::ElementType);
+  // Enjoy the beauty of C++11!!!!!!!
+  dbg_printf("ElementType size = %lu\n",
+             sizeof(typename std::remove_pointer<decltype(p)>::type::ElementType));
   
   LocalWriteEMFactory<4>::FreeInstance(p);
   

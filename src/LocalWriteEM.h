@@ -27,6 +27,14 @@ class PaddedData {
    * operator T() - Type conversion overloading
    */
   operator T() const { return data; }
+
+  /*
+   * operator-> - We use this to access elements inside the data member of
+   *              the wrapped class
+   *
+   * So the class being wrapped is accessed like we are using a pointer
+   */
+  T *operator->() const { return &data; }
  private:
   // This is the padding part
   char padding[padding_size];
@@ -52,6 +60,10 @@ class PaddedData {
 template<uint64_t core_num>
 class LocalWriteEM {
   friend class LocalWriteEMFactory<core_num>;
+ public:
+  // This type is accessible to external
+  using ElementType = PaddedData<std::atomic<uint64_t>, CACHE_LINE_SIZE>;
+  
  private:
   // They are stored as an array, and we pad it to 64 bytes so that the
   // structure could be shared among cache lines
@@ -59,7 +71,7 @@ class LocalWriteEM {
   // be allocated on 64 byte aligned memory address
   // To achieve this we use a static member function to do initialization
   // and disallow arbitrary initialization
-  PaddedData<std::atomic<uint64_t>, CACHE_LINE_SIZE> data[core_num];
+  ElementType per_core_counter_list[core_num];
   
   /*
    * Constructor - This is the only valid way of constructing an instance
@@ -80,8 +92,7 @@ class LocalWriteEM {
   }
   
  public:
-  // This type is accessible to external
-  using ElementType = T;
+  
    
   // Disallow any form of copying and construction without explicitly
   // aligning it to 64 byte boundary by the public
