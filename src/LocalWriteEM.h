@@ -80,6 +80,8 @@ class LocalWriteEM {
   }
   
  public:
+  // This type is accessible to external
+  using ElementType = T;
    
   // Disallow any form of copying and construction without explicitly
   // aligning it to 64 byte boundary by the public
