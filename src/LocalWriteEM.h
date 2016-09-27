@@ -26,7 +26,7 @@ class PaddedData {
   /*
    * operator T() - Type conversion overloading
    */
-  operator T() const { return data; }
+  operator T() { return data; }
 
   /*
    * operator-> - We use this to access elements inside the data member of
@@ -34,7 +34,7 @@ class PaddedData {
    *
    * So the class being wrapped is accessed like we are using a pointer
    */
-  T *operator->() const { return &data; }
+  T *operator->() { return &data; }
 
   /*
    * Get() - Explicitly call to return a reference of the data being wrapped
@@ -67,7 +67,10 @@ template<uint64_t core_num>
 class LocalWriteEM {
   friend class LocalWriteEMFactory<core_num>;
  public:
-  // This type is accessible to external
+  // It is the type of the cuonter we use to represent an epoch
+  using CounterType = uint64_t;
+
+  // This is a padded version of epoch counter
   using ElementType = PaddedData<std::atomic<uint64_t>, CACHE_LINE_SIZE>;
   
  private:
@@ -78,12 +81,29 @@ class LocalWriteEM {
   // To achieve this we use a static member function to do initialization
   // and disallow arbitrary initialization
   ElementType per_core_counter_list[core_num];
-  
+ 
+  // This is the epoch counter that each thread needs to read when entering
+  // an epoch
+  // Note that according to the design, the epoch timer is set to a relatively
+  // large value (50 ms, etc.) so most of the read operation for every thread
+  // should be a local read unless the counter happens to be increamented by
+  // the epoch thread, which does not consitute a major overhead
+  ElementType epoch_counter;
+ 
   /*
    * Constructor - This is the only valid way of constructing an instance
    */
   LocalWriteEM() {
     dbg_printf("C'tor for %lu cores called. p = %p\n", core_num, this);
+
+    // Initialization - all counter should be set to 0 since the global
+    // epoch counter also starts at 0
+    for(size_t i = 0;i < core_num;i++) {
+      per_core_counter_list[i]->store(0);
+    }
+
+    // Also set the current epoch to be 0
+    epoch_counter->store(0);
     
     return;
   }

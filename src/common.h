@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <vector>
 #include <unordered_map>
+#include <atomic>
 
 #define DEBUG_PRINT
 
