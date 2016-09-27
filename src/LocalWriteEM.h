@@ -35,6 +35,12 @@ class PaddedData {
    * So the class being wrapped is accessed like we are using a pointer
    */
   T *operator->() const { return &data; }
+
+  /*
+   * Get() - Explicitly call to return a reference of the data being wrapped
+   */
+  T &Get() const { return data; }
+
  private:
   // This is the padding part
   char padding[padding_size];
