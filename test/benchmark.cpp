@@ -9,9 +9,12 @@ template <uint64_t core_num, typename GarbageNode>
 std::unordered_map<void *, void *>
 LocalWriteEMFactory<core_num, GarbageNode>::instance_map{};
 
+using EMFactory = LocalWriteEMFactory<4, char>;
+using EM = typename EMFactory::TargetType;
+
 int main() {
   // This instance must be created by the factory
-  LocalWriteEM<4, char> *p = LocalWriteEMFactory<4>::GetInstance();
+  EM *p = EMFactory::GetInstance();
   
   dbg_printf("pointer = %p\n", p);
   dbg_printf("Multiple of 64? %d\n", (int)!((uint64_t)p % 64));
@@ -22,7 +25,7 @@ int main() {
   dbg_printf("ElementType size = %lu\n",
              sizeof(typename std::remove_pointer<decltype(p)>::type::ElementType));
   
-  LocalWriteEMFactory<4, char>::FreeInstance(p);
+  EMFactory::FreeInstance(p);
   
   return 0;
 }
