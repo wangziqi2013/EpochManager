@@ -3,7 +3,8 @@
 
 #define CACHE_LINE_SIZE 64
 
-template<uint64_t core_num>
+template<uint64_t core_num,
+         typename GarbageType>
 class LocalWriteEMFactory;
 
 /*
@@ -69,7 +70,7 @@ class PaddedData {
 template<uint64_t core_num,
          typename GarbageType>
 class LocalWriteEM {
-  friend class LocalWriteEMFactory<core_num>;
+  friend class LocalWriteEMFactory<core_num, GarbageType>;
  public:
   // It is the type of the cuonter we use to represent an epoch
   using CounterType = uint64_t;
@@ -187,7 +188,7 @@ class LocalWriteEM {
  * a LocalWriteEM instance
  */
 template<uint64_t core_num, 
-         >
+         typename GarbageType>
 class LocalWriteEMFactory {
  public:
   // This is a map that records the pointer to instances being used
@@ -206,9 +207,12 @@ class LocalWriteEMFactory {
    * This function is not thread-safe so please only call it under a
    * single threaded environment
    */
-  static LocalWriteEM<core_num> *GetInstance() {
-    char *p = reinterpret_cast<char *>(malloc(sizeof(LocalWriteEM<core_num>) +
-                                              CACHE_LINE_SIZE));
+  static LocalWriteEM<core_num, GarbageNode> *GetInstance() {
+    char *p = \
+      reinterpret_cast<char *>(
+        malloc(
+          sizeof(
+            LocalWriteEM<core_num, GarbageType>) + CACHE_LINE_SIZE));
                                               
     dbg_printf("Malloc() returns p = %p\n", p);
     
@@ -228,9 +232,10 @@ class LocalWriteEMFactory {
     assert(it.second == true); (void)it;
     
     // At last call constructor for the class
-    new (q) LocalWriteEM<core_num>{};
+    // Note that we should construct on the aligned address
+    new (q) LocalWriteEM<core_num, GarbageType>{};
     
-    return reinterpret_cast<LocalWriteEM<core_num> *>(q);
+    return reinterpret_cast<LocalWriteEM<core_num, GarbageType> *>(q);
   }
 
   /*
@@ -241,7 +246,9 @@ class LocalWriteEMFactory {
    */
   static void FreeInstance(void *p) {
     // Call destructor after casting it to appropriate type
-    reinterpret_cast<LocalWriteEM<core_num> *>(p)->~LocalWriteEM<core_num>();
+    // Note that we should call destructor on aligned address, i.e. before
+    // translating it to the malloc'ed address
+    reinterpret_cast<LocalWriteEM<core_num, GarbageType> *>(p)->~LocalWriteEM<core_num, GarbageType>();
 
     auto it = instance_map.find(p);
 

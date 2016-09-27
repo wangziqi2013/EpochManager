@@ -5,13 +5,13 @@
 // This must be instanciated in the translation unit where it is
 // used. Otherwise the compiler is not able to know its existence
 // which causes the linker to complain
-template <uint64_t core_num>
+template <uint64_t core_num, typename GarbageNode>
 std::unordered_map<void *, void *>
-LocalWriteEMFactory<core_num>::instance_map{};
+LocalWriteEMFactory<core_num, GarbageNode>::instance_map{};
 
 int main() {
   // This instance must be created by the factory
-  LocalWriteEM<4> *p = LocalWriteEMFactory<4>::GetInstance();
+  LocalWriteEM<4, char> *p = LocalWriteEMFactory<4>::GetInstance();
   
   dbg_printf("pointer = %p\n", p);
   dbg_printf("Multiple of 64? %d\n", (int)!((uint64_t)p % 64));
@@ -22,7 +22,7 @@ int main() {
   dbg_printf("ElementType size = %lu\n",
              sizeof(typename std::remove_pointer<decltype(p)>::type::ElementType));
   
-  LocalWriteEMFactory<4>::FreeInstance(p);
+  LocalWriteEMFactory<4, char>::FreeInstance(p);
   
   return 0;
 }
