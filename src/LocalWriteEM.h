@@ -118,7 +118,6 @@ class LocalWriteEM {
   }
   
  public:
-  
    
   // Disallow any form of copying and construction without explicitly
   // aligning it to 64 byte boundary by the public
@@ -126,6 +125,26 @@ class LocalWriteEM {
   LocalWriteEM(LocalWriteEM &&) = delete;
   LocalWriteEM &operator=(const LocalWriteEM &) = delete;
   LocalWriteEM &operator=(LocalWriteEM &&) = delete;
+
+  /*
+   * AnnounceEnter() - Announces that a thread enters the system
+   *
+   * This effectively let a thread running on the core it claimed to be
+   * (through function argument) read the global epoch counter (which
+   * should be a local cache read in most of the time) and then write
+   * into its local latest enter epoch
+   */
+  void AnnounceEnter(uint64_t core_id) {
+    // Under debug mopde let's assert core id is correct to avoid
+    // serious bugs
+    assert(core_id < core_num);
+ 
+    // This is a strict read/write ordering - load must always happen
+    // before store
+    per_core_counter_list[core_id]->store(epoch_counter->load());
+
+    return;
+  }
 };
 
 /*
