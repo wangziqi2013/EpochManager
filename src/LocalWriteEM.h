@@ -62,8 +62,12 @@ class PaddedData {
  * checks each local counter and finds the minimum one. After that it uses
  * the minimum live worker thread's epoch to reclaim garbage nodes whose
  * epoch of deletion < the epoch of oldest living worker thread
+ *
+ * The second template argument is the type of garbage node. We keep a 
+ * pointer type to GarbageType in the garbage node.
  */
-template<uint64_t core_num>
+template<uint64_t core_num,
+         typename GarbageType>
 class LocalWriteEM {
   friend class LocalWriteEMFactory<core_num>;
  public:
@@ -71,9 +75,32 @@ class LocalWriteEM {
   using CounterType = uint64_t;
 
   // This is a padded version of epoch counter
-  using ElementType = PaddedData<std::atomic<uint64_t>, CACHE_LINE_SIZE>;
+  using ElementType = PaddedData<std::atomic<CounterType>, CACHE_LINE_SIZE>;
   
  private:
+
+  /*
+   * class GarbageNode - The node we use to hold garbage
+   *
+   * All garbage nodes in the systems forms a garbage chain in which all
+   * delayed allocation together with a counter recording the time it was
+   * removed are stored.
+   *
+   * Upon garbage collection, the GC thread scans the garbage chain linked
+   * list, and compares the deleted epoch with the current minimum epoch
+   * announced by all threads using the per-core counter. Garbage nodes
+   * with its deleted epoch being smaller than the global epoch will be
+   * removed
+   */
+  class GarbageNode {
+   public:
+    CounterType deleted_epoch;
+    GarbageType *garbage_p;
+
+    // This will be updated in an unsuccessful CAS, so make it public
+    GarbageNode *next_p;
+  };
+
   // They are stored as an array, and we pad it to 64 bytes so that the
   // structure could be shared among cache lines
   // Note: In order for this to work, the class itself must also
@@ -89,6 +116,12 @@ class LocalWriteEM {
   // should be a local read unless the counter happens to be increamented by
   // the epoch thread, which does not consitute a major overhead
   ElementType epoch_counter;
+
+  // This is the head of the linked list where garbage nodes are linked
+  // into
+  // In the future we might want to use a per core garbage list to reduce
+  // contention and further accelerate the Insert() procedure
+  std::atomic<GarbageNode *> garbage_head_p;
  
   /*
    * Constructor - This is the only valid way of constructing an instance
@@ -153,7 +186,8 @@ class LocalWriteEM {
  * This class should be used as the only way of constructing and destroying
  * a LocalWriteEM instance
  */
-template<uint64_t core_num>
+template<uint64_t core_num, 
+         >
 class LocalWriteEMFactory {
  public:
   // This is a map that records the pointer to instances being used
