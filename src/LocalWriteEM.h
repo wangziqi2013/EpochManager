@@ -191,6 +191,10 @@ template<uint64_t core_num,
          typename GarbageType>
 class LocalWriteEMFactory {
  public:
+
+  // This is the type of the EM it derives
+  using TargetType = LocalWriteEM<core_num, GarbageType>;
+
   // This is a map that records the pointer to instances being used
   // and memory addresses being allocated
   // The first is used for construction and destruction, while the latter
@@ -207,12 +211,12 @@ class LocalWriteEMFactory {
    * This function is not thread-safe so please only call it under a
    * single threaded environment
    */
-  static LocalWriteEM<core_num, GarbageNode> *GetInstance() {
+  static TargetType *GetInstance() {
+    // The extra cache line size is used to aligning all elements
+    // to the cache line boundary
     char *p = \
       reinterpret_cast<char *>(
-        malloc(
-          sizeof(
-            LocalWriteEM<core_num, GarbageType>) + CACHE_LINE_SIZE));
+        malloc(sizeof(TargetType) + CACHE_LINE_SIZE));
                                               
     dbg_printf("Malloc() returns p = %p\n", p);
     
@@ -244,11 +248,11 @@ class LocalWriteEMFactory {
    * Note that this function is not thread-safe - please call it
    * only during single threaded destruction
    */
-  static void FreeInstance(void *p) {
+  static void FreeInstance(TargetType *p) {
     // Call destructor after casting it to appropriate type
     // Note that we should call destructor on aligned address, i.e. before
     // translating it to the malloc'ed address
-    reinterpret_cast<LocalWriteEM<core_num, GarbageType> *>(p)->~LocalWriteEM<core_num, GarbageType>();
+    p->~TargetType();
 
     auto it = instance_map.find(p);
 
