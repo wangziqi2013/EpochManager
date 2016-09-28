@@ -235,6 +235,26 @@ class LocalWriteEM {
     
     return;
   }
+  
+  /*
+   * FreeGarbageNode() - Frees a garbage type
+   *
+   * If users want to write their own epoch manager to destroy objects in a 
+   * customized way, then they should modify this function. Here we just 
+   * call operator delete to free
+   */
+  inline void FreeGarbageNode(GarbageType *garbage_p) {
+    delete garbage_p;
+    
+    return;
+  }
+  
+  /*
+   * DoGC() - This is the main function doing garbage collection
+   */
+  void DoGC() {
+    
+  }
 };
 
 /*
