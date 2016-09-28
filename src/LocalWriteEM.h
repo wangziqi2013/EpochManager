@@ -102,8 +102,22 @@ class LocalWriteEM {
     GarbageNode *next_p;
     
     /*
+     * Constructor
+     *
+     * Note that we do not initialize next_p here since it will be part of
+     * the CAS process
+     */
+    GarbageNode(GarbageType *p_garbage_p, p_deleted_epoch) :
+      deleted_epoch{p_deleted_epoch},
+      garbage_p{p_garbage_p}
+    {}
+    
+    /*
      * LinkTo() - Given the linked list head, try to link itself onto that
      *            linked list
+     *
+     * Note that although this function uses CAS instead of lock, it is
+     * not wait-free - the CAS loop is effectively like a spin lock
      */
     inline void LinkTo(std::atomic<GarbageNode *> *head_p) {
       next_p->head_p->load();
@@ -196,6 +210,20 @@ class LocalWriteEM {
     per_core_counter_list[core_id]->store(epoch_counter->load());
 
     return;
+  }
+  
+  /*
+   * AddGarbageNode() - Adds a node whose deallocation will be delayed
+   *
+   * This function creates a garbage node linked list node and puts both
+   * garbage node and the epoch counter into the garbage chain
+   *
+   * Note: When this function is called the caller should guarantee that the
+   * node is already not visible by other threads, otherwise the assumption
+   * made about the garbage collection mechanism will break
+   */
+  void AddGarbageNode(GarbageType *garbage_p) {
+    
   }
 };
 
