@@ -107,7 +107,7 @@ class LocalWriteEM {
      * Note that we do not initialize next_p here since it will be part of
      * the CAS process
      */
-    GarbageNode(GarbageType *p_garbage_p, p_deleted_epoch) :
+    GarbageNode(GarbageType *p_garbage_p, CounterType p_deleted_epoch) :
       deleted_epoch{p_deleted_epoch},
       garbage_p{p_garbage_p}
     {}
@@ -223,7 +223,17 @@ class LocalWriteEM {
    * made about the garbage collection mechanism will break
    */
   void AddGarbageNode(GarbageType *garbage_p) {
+    // We load epoch counter here such that the time the garbage node disappears
+    // from the system <= current epoch time
+    // As long as we only do GC for nodes whose epoch counter < earlest
+    // accessing epoch counter which further <= time of the thread touching
+    // any shared resource, then we know it is saft to reclaim the memory
+    GarbageNode *gn_p = GarbageNode{garbage_p, epoch_counter->load()};
     
+    // Use CAS to link the node onto the linked list
+    gn_p->LinkTo(&garbage_head_p);
+    
+    return;
   }
 };
 
