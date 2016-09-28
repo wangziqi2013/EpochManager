@@ -250,10 +250,58 @@ class LocalWriteEM {
   }
   
   /*
-   * DoGC() - This is the main function doing garbage collection
+   * DoGC() - This is the main function for doing garbage collection
    */
   void DoGC() {
+    // We use this to remember the minimum number of cores
+    uint64_t min_epoch = per_core_counter_list[0]->load();
     
+    // If there are more than 1 core then we just loop through
+    // counters for each core and pick the smaller one everytime
+    for(uint64_t i = 1;i < core_num;i++) {
+      uint64_t counter = per_core_counter_list[i]->load();
+      
+      if(counter < min_epoch) {
+        min_epoch = counter; 
+      }
+    }
+    
+    // Now we have the miminum epoch which is the time <= the earlist thread
+    // entering the system
+    // We could collect all garbage nodes before this time
+    
+    // Load the head of the linked list
+    GarbageNode *current_node_p = garbage_head_p.load();
+    if(current_node_p == nullptr) {
+      return; 
+    }
+    
+    GarbageNode *next_node_p = current_node_p->next_p;
+    
+    while(next_node_p != nullptr) {
+      CounterType next_counter = next_node_p->deleted_epoch;
+      
+      if(next_counter < min_epoch) {
+        // If next node is qualified then remove both the garbage node
+        // and the wrapper, and since current_node_p->next_p has already
+        // been set to the next node, we know these two pointers are still
+        // pointing to neighbor nodes
+        current_node_p->next_p = next_node_p->next_p;
+        
+        FreeGarbageNode(next_node_p->garbage_p);
+        delete next_node_p;
+        
+        next_node_p = current_node_p->next_p;
+      } else {
+        // Otherwise, we know next_node_p will not be freed, and it is
+        // a valid pointer, so change current_node_p to it
+        // and check its next node
+        current_node_p = next_node_p;
+        next_node_p = next_node_p->next_p;  
+      }
+    }
+    
+    return;
   }
 };
 
