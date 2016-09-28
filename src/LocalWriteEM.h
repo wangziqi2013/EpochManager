@@ -138,6 +138,9 @@ class LocalWriteEM {
 
     // Also set the current epoch to be 0
     epoch_counter->store(0);
+
+    // The end of the linked list
+    garbage_head_p.store(nullptr);
     
     return;
   }
