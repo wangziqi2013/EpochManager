@@ -100,6 +100,21 @@ class LocalWriteEM {
 
     // This will be updated in an unsuccessful CAS, so make it public
     GarbageNode *next_p;
+    
+    /*
+     * LinkTo() - Given the linked list head, try to link itself onto that
+     *            linked list
+     */
+    inline void LinkTo(std::atomic<GarbageNode *> *head_p) {
+      next_p->head_p->load();
+      
+      // Empty loop
+      // Note that the next_p will be loaded with the most up-to-date
+      // value of head_p, so we do not need to load it explicitly
+      while(head_p->compare_exchange_strong(next_p, this) == false) {}
+      
+      return;
+    }
   };
 
   // They are stored as an array, and we pad it to 64 bytes so that the
