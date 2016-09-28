@@ -228,7 +228,7 @@ class LocalWriteEM {
     // As long as we only do GC for nodes whose epoch counter < earlest
     // accessing epoch counter which further <= time of the thread touching
     // any shared resource, then we know it is saft to reclaim the memory
-    GarbageNode *gn_p = GarbageNode{garbage_p, epoch_counter->load()};
+    GarbageNode *gn_p = new GarbageNode{garbage_p, epoch_counter->load()};
     
     // Use CAS to link the node onto the linked list
     gn_p->LinkTo(&garbage_head_p);
@@ -388,5 +388,13 @@ class LocalWriteEMFactory {
     free(it->second);
 
     return;
+  }
+  
+  /*
+   * StartGCThread() - Starts a thread as the GC thread that runs periodically
+   *                   to scan the garbage node
+   */
+  void StartGCThread() {
+    
   }
 };
