@@ -17,5 +17,6 @@ clean:
 	@rm -f ./bin/*
 	@rm -f ./build/*
 	@rm -f *.log
+	@rm -f ./*-bin
 
 
