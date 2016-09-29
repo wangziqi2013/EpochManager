@@ -147,6 +147,10 @@ class LocalWriteEM {
   // the epoch thread, which does not consitute a major overhead
   ElementType epoch_counter;
 
+  // The following does not have to be cache aligned since they 
+  // are not usually operated frequently OR could not benefit from
+  // cache alignment
+
   // This is the head of the linked list where garbage nodes are linked
   // into
   // In the future we might want to use a per core garbage list to reduce
@@ -163,7 +167,11 @@ class LocalWriteEM {
   std::atomic<bool> exited_flag;
  
   /*
-   * Constructor - This is the only valid way of constructing an instance
+   * Constructor 
+   *
+   * The constructor has been deliberately declared as private member to
+   * prevent construction on unaligned address. Please use WriteLocalEMFactory 
+   * class to allocate it in a cache aligned manner
    */
   LocalWriteEM() {
     dbg_printf("C'tor for %lu cores called. p = %p\n", core_num, this);
@@ -197,7 +205,7 @@ class LocalWriteEM {
     // If an external thread is present, the epoch manager will not wait fot it
     // since it assumes that the caller of the destructor will destroy that
     // thread first (i.e.)
-    exited_flag.store(true);
+    SignalExit();
     
     return;
   }
@@ -210,6 +218,18 @@ class LocalWriteEM {
   LocalWriteEM(LocalWriteEM &&) = delete;
   LocalWriteEM &operator=(const LocalWriteEM &) = delete;
   LocalWriteEM &operator=(LocalWriteEM &&) = delete;
+
+  /*
+   * HasExited() - Whether the exit signal has been issued
+   *
+   * This function is a wrapped to allow external access of the exited_flag
+   * variable. If an external thread is used as the GC thread then the user
+   * of this EM should signal exiting first, wait for external threads on this
+   * condition, and then call destructor of the EM 
+   */
+  bool HasExited() {
+    return exited_flag.load();  
+  }
 
   /*
    * SignalExit() - Signals that the epoch manager will exit by setting an 
