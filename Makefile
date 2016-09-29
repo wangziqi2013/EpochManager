@@ -10,6 +10,10 @@ basic_test: ./src/AtomicStack.cpp ./test/basic_test.cpp ./build/test_suite.o
 	$(CXX) $(CXX_FLAGS) $^ -o ./bin/basic_test
 	@ln -sf ./bin/basic_test ./basic_test-bin
 
+em_test: ./src/AtomicStack.cpp ./test/em_test.cpp ./src/LocalWriteEM.cpp ./build/test_suite.o
+	$(CXX) $(CXX_FLAGS) $^ -o ./bin/em_test
+	@ln -sf ./bin/em_test ./em_test-bin
+
 ./build/test_suite.o: ./test/test_suite.cpp
 	$(CXX) $(CXX_FLAGS) $^ -c -o ./build/test_suite.o
 
