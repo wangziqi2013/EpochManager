@@ -462,16 +462,17 @@ class LocalWriteEM {
 template<uint64_t core_num, 
          typename GarbageType>
 class LocalWriteEMFactory {
- public:
-
-  // This is the type of the EM it derives
-  using TargetType = LocalWriteEM<core_num, GarbageType>;
-
+ private:
   // This is a map that records the pointer to instances being used
   // and memory addresses being allocated
   // The first is used for construction and destruction, while the latter
   // are used for freeing the memory chunk
   static std::unordered_map<void *, void *> instance_map;
+   
+ public:
+
+  // This is the type of the EM it derives
+  using TargetType = LocalWriteEM<core_num, GarbageType>;
 
   /*
    * GetInstance() - Get an instance of the epoch manager
@@ -538,3 +539,5 @@ class LocalWriteEMFactory {
     return;
   }
 };
+
+unsigned int GetOptimalCoreNumber();
