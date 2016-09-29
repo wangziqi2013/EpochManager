@@ -250,6 +250,16 @@ class LocalWriteEM {
   }
   
   /*
+   * GotoNextEpoch() - Increases the epoch counter value by 1
+   */
+  void GotoNextEpoch() {
+    // Atomically increase the epoch counter - This function does not
+    epoch_counter->fetch_add(1);
+    
+    return; 
+  }
+  
+  /*
    * DoGC() - This is the main function for doing garbage collection
    *
    * Note that worker threads could only access the head of linked list, which
@@ -261,13 +271,10 @@ class LocalWriteEM {
    * context, but it is best practice for us to aovid it since if the design
    * is changed in the future we will have less potential undocumented problems
    *
-   * NOTE: This function also increases epoch counter
+   * NOTE: This function does not increase epoch counter, since the pace that
+   * epoch counter increases could optionally differ from the GC pace
    */
   void DoGC() {
-    // Atomically increase the epoch counter - This function does not
-    // use the counter, and it just keeps it updated
-    epoch_counter.fetch_add(1);
-    
     // We use this to remember the minimum number of cores
     uint64_t min_epoch = per_core_counter_list[0]->load();
     
@@ -322,10 +329,20 @@ class LocalWriteEM {
   /*
    * ThreadFunc() - This is the function body for GC thread
    *
-   * This function mainly wraps DoGC(), with a delay, the purpose of which 
+   * This function mainly wraps DoGC(), with a delay, the purpose of which is
+   * to control the frequency we do GC (and invalidate local caches of the 
+   * global counter kept by each worker thread in their own CPU cores).
    */
   void ThreadFunc() {
+    // By default the thread sleeps for 50 milli seconds and then do GC
+    const uint64_t speep_ms = 50UL;
     
+    while(1) {
+      GotoNextEpoch();
+      DoGC();
+      
+      
+    }
   }
 };
 
@@ -416,13 +433,5 @@ class LocalWriteEMFactory {
     free(it->second);
 
     return;
-  }
-  
-  /*
-   * StartGCThread() - Starts a thread as the GC thread that runs periodically
-   *                   to scan the garbage node
-   */
-  void StartGCThread() {
-    
   }
 };
