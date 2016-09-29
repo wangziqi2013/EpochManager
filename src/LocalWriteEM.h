@@ -165,6 +165,14 @@ class LocalWriteEM {
   // But to accomondate other platforms that have weaker memory ordering
   // we should make it an atiomic to avoid potential bugs
   std::atomic<bool> exited_flag;
+  
+  // This is a pointer to the control structure of the GC thread if there
+  // is one.
+  // The GC thread is invoked explicitly by calling the member function
+  // and it does not start automatically during construction since other
+  // necessary structure might have not been prepared properly
+  // If thread is not created by this object then the pointer is set to nullptr
+  std::thread *gc_thread_p;
  
   /*
    * Constructor 
@@ -191,6 +199,9 @@ class LocalWriteEM {
     // This will be set true in destructor
     exited_flag.store(false);
     
+    // If this is nullptr then we do not wait for it in destructor
+    gc_thread_p = nullptr;
+    
     return;
   }
   
@@ -200,11 +211,20 @@ class LocalWriteEM {
   ~LocalWriteEM() {
     dbg_printf("D'tor for %lu cores called. p = %p\n", core_num, this);
     
-    // Signal all threads reading this variable that the epoch manager object 
-    // will soon be destroyed, so just stop
-    // Even if external threads are used, this does not pose any problem
-    // since setting atomic variable to false is idempotent
-    SignalExit();
+    // If gc thread is inkoved inside this object then we wait for it
+    if(gc_thread_p != nullptr) {
+      // Signal all threads reading this variable that the epoch manager object 
+      // will soon be destroyed, so just stop
+      SignalExit();
+      
+      gc_thread_p->join();
+    } else {
+      // Otherwise the flag must be set true
+      assert(HasExited() == true);
+    }
+    
+    // The thread has already exited
+    delete gc_thread_p;
     
     return;
   }
