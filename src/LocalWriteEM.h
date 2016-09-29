@@ -152,6 +152,15 @@ class LocalWriteEM {
   // In the future we might want to use a per core garbage list to reduce
   // contention and further accelerate the Insert() procedure
   std::atomic<GarbageNode *> garbage_head_p;
+  
+  // This is set if the destructor is called and we need to terminate the
+  // GC thread, if there is one
+  // Or if there is an external it should also check this flag
+  // Note that on Intel platform this need not be an atomic variable since
+  // Intel CPU read/write are of acquire/release semantics
+  // But to accomondate other platforms that have weaker memory ordering
+  // we should make it an atiomic to avoid potential bugs
+  std::atomic<bool> exited_flag;
  
   /*
    * Constructor - This is the only valid way of constructing an instance
@@ -171,6 +180,9 @@ class LocalWriteEM {
     // The end of the linked list
     garbage_head_p.store(nullptr);
     
+    // This will be set true in destructor
+    exited_flag.store(false);
+    
     return;
   }
   
@@ -179,6 +191,13 @@ class LocalWriteEM {
    */
   ~LocalWriteEM() {
     dbg_printf("D'tor for %lu cores called. p = %p\n", core_num, this);
+    
+    // Signal all threads reading this variable that the epoch manager object 
+    // will soon be destroyed, so just stop
+    // If an external thread is present, the epoch manager will not wait fot it
+    // since it assumes that the caller of the destructor will destroy that
+    // thread first (i.e.)
+    exited_flag.store(true);
     
     return;
   }
@@ -191,6 +210,25 @@ class LocalWriteEM {
   LocalWriteEM(LocalWriteEM &&) = delete;
   LocalWriteEM &operator=(const LocalWriteEM &) = delete;
   LocalWriteEM &operator=(LocalWriteEM &&) = delete;
+
+  /*
+   * SignalExit() - Signals that the epoch manager will exit by setting an 
+   *                atomic flag to true
+   *
+   * If the epoch manager uses its own thread as the GC thread then after this
+   * function we should wait for that thread to stop and continue. However,
+   * if an external thread is used for GC, then after signaling this, the 
+   * external thread should react to the signal by calling query function for
+   * the status of exited_flag, and then exit. The user of the epoch manager
+   * should then wait for the external thread to exit before destroying the 
+   * EM object. Otherwise the thread might still be running after the EM has
+   * been destroyed, corrupting random memory location.
+   */
+  void SignalExit() {
+    exited_flag.store(true);
+    
+    return; 
+  }
 
   /*
    * AnnounceEnter() - Announces that a thread enters the system
@@ -335,13 +373,14 @@ class LocalWriteEM {
    */
   void ThreadFunc() {
     // By default the thread sleeps for 50 milli seconds and then do GC
-    const uint64_t speep_ms = 50UL;
+    const uint64_t sleep_ms = 50UL;
     
     while(1) {
       GotoNextEpoch();
       DoGC();
       
-      
+      std::chrono::milliseconds duration{sleep_ms}
+      std::this_thread::sleep_for(duration);
     }
   }
 };
