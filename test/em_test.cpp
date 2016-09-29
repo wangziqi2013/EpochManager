@@ -83,7 +83,7 @@ void ThreadTest() {
   dbg_printf("Thread has exited\n");
   
   return;
-}
+} 
 
 int main() {
   FactoryTest();

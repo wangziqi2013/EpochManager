@@ -1,6 +1,6 @@
 
 #include "common.h"
-
+ 
 #define CACHE_LINE_SIZE 64
 
 template<uint64_t core_num,

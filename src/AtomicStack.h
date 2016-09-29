@@ -51,6 +51,10 @@ class AtomicStack {
   std::atomic<Node *> head_p;
   
  public:
+  
+  // This will be used by the caller to receive the node we popped out
+  // fron the stack
+  using NodeType = Node; 
    
   /*
    * Constructor() - Initialize head pointer to nullptr
