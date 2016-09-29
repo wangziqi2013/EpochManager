@@ -20,10 +20,15 @@ template <uint64_t core_num, typename GarbageNode>
 std::unordered_map<void *, void *>
 LocalWriteEMFactory<core_num, GarbageNode>::instance_map{};
 
+static const uint64_t core_num = 8;
+
 // Since the EM type is defined by the EMFactory type, we could
 // make it easier 
-using EMFactory = LocalWriteEMFactory<4, char>;
+using EMFactory = LocalWriteEMFactory<core_num, char>;
 using EM = typename EMFactory::TargetType; 
+
+using StackType 
+using NodeType = AtomicStack<uint64>
 
 /*
  * FactoryTest() - Tests EM factory
@@ -83,8 +88,12 @@ void ThreadTest() {
   dbg_printf("Thread has exited\n");
   
   return;
-} 
+}
 
+/*
+ * MixedGCTest() - Test GC under MixedTest workload which is part of the 
+ *                 BasicTest for AtomicStack
+ */
 void MixedGCTest(uint64_t thread_num, uint64_t op_num) {
   PrintTestName("MixedGCTest");
 
@@ -119,6 +128,7 @@ void MixedGCTest(uint64_t thread_num, uint64_t op_num) {
                     while(1) {
                       bool ret;
                       uint64_t data;
+                      
                       
                       ret = as.Pop(data);
                       
