@@ -5,7 +5,9 @@
  * PrintTestName() - As name suggests 
  */
 void PrintTestName(const char *name) {
+  dbg_printf("=\n");
   dbg_printf("========== %s ==========\n", name);
+  dbg_printf("=\n");
   
   return;
 }
