@@ -330,7 +330,7 @@ class LocalWriteEM {
    * GotoNextEpoch() - Increases the epoch counter value by 1
    */
   void GotoNextEpoch() {
-    // Atomically increase the epoch counter - This function does not
+    // Atomically increase the epoch counter
     epoch_counter->fetch_add(1);
     
     return; 
@@ -423,6 +423,27 @@ class LocalWriteEM {
       std::chrono::milliseconds duration{sleep_ms};
       std::this_thread::sleep_for(duration);
     }
+    
+    return;
+  }
+  
+  /*
+   * StartGCThread() - Starts the GC thread inside the EM object
+   *
+   * The GC thread will be created as a std::thread object running ThreadFunc()
+   * as its thread body. It periodically wakes up and does garbage collection,
+   * and will stop & exit after SignalExit() has been called
+   *
+   * A reasonable external GC procedure should roughly follow the same way,
+   * especially before the destruction of the EM object, an external thread
+   * must be signaled to stop, and thus it has to check HasExited()
+   */
+  void StartGCThread() {
+    // Could not start new thread if the EM has been destroyed
+    assert(HasExited() == false);
+    assert(gc_thread_p == nullptr);
+    
+    gc_thread_p = new std::thread(ThreadFunc);
     
     return;
   }
