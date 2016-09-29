@@ -120,7 +120,7 @@ class LocalWriteEM {
      * not wait-free - the CAS loop is effectively like a spin lock
      */
     inline void LinkTo(std::atomic<GarbageNode *> *head_p) {
-      next_p->head_p->load();
+      next_p = head_p->load();
       
       // Empty loop
       // Note that the next_p will be loaded with the most up-to-date
@@ -355,7 +355,7 @@ class LocalWriteEM {
    */
   inline void FreeGarbageNode(GarbageType *garbage_p) {
     delete garbage_p;
-    
+        
     return;
   }
   
@@ -404,7 +404,7 @@ class LocalWriteEM {
         min_epoch = counter; 
       }
     }
-    
+       
     // Now we have the miminum epoch which is the time <= the earlist thread
     // entering the system
     // We could collect all garbage nodes before this time
@@ -452,7 +452,7 @@ class LocalWriteEM {
    */
   static void ThreadFunc(LocalWriteEM<core_num, GarbageType> *em) {
     // By default the thread sleeps for 50 milli seconds and then do GC
-    const uint64_t sleep_ms = 50UL;
+    const uint64_t sleep_ms = 5UL;
     
     // Loop on the atomic flag that will be set when destructor is called
     // (it is the first operation inside the destructor)
