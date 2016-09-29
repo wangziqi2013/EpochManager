@@ -202,9 +202,8 @@ class LocalWriteEM {
     
     // Signal all threads reading this variable that the epoch manager object 
     // will soon be destroyed, so just stop
-    // If an external thread is present, the epoch manager will not wait fot it
-    // since it assumes that the caller of the destructor will destroy that
-    // thread first (i.e.)
+    // Even if external threads are used, this does not pose any problem
+    // since setting atomic variable to false is idempotent
     SignalExit();
     
     return;
@@ -395,13 +394,17 @@ class LocalWriteEM {
     // By default the thread sleeps for 50 milli seconds and then do GC
     const uint64_t sleep_ms = 50UL;
     
-    while(1) {
+    // Loop on the atomic flag that will be set when destructor is called
+    // (it is the first operation inside the destructor)
+    while(HasExited() == false) {
       GotoNextEpoch();
       DoGC();
       
       std::chrono::milliseconds duration{sleep_ms};
       std::this_thread::sleep_for(duration);
     }
+    
+    return;
   }
 };
 
