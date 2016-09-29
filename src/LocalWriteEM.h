@@ -537,6 +537,10 @@ class LocalWriteEMFactory {
 
     // Free the original raw pointer
     free(it->second);
+    
+    // Since we know ther iterator is always valid if we reach here
+    // so just delete the element with the iterator
+    instance_map.erase(it);
 
     return;
   }
