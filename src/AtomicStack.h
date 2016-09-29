@@ -85,16 +85,36 @@ class AtomicStack {
   }
 
   /*
-   * Pop() - Pop an element out of the stack and assign it to the reference
+   * Pop(1) - Pop an element out of the stack and assign it to the reference
    *
    * The function changes the argument. Also if the stack is empty then
    * this function returns false
    */
   bool Pop(T &data) {
+    Node *node_p = Pop();
+    if(node_p == nullptr) {
+      return false; 
+    }
+    
+    data = node_p->data;
+    
+    return true;
+  }
+  
+  /*
+   * Pop(2) - Pops a node out of the stack and directly return the node
+   *
+   * Node that this function also returns value in the NodeType pointer.
+   * The caller is responsible for doing GC on the node being returned
+   * and for maintaining epoch counters outside this call
+   *
+   * If the stack is empty then nullptr is returned
+   */
+  Node *Pop() {
     Node *old_p = head_p.load();
     
     if(old_p == nullptr) {
-      return false;
+      return nullptr;
     }
     
     Node *new_p = old_p->next_p;
@@ -105,17 +125,15 @@ class AtomicStack {
     while(head_p.compare_exchange_strong(old_p, new_p) == false) {
       // Since old_p is loaded with the newest value we need to check this
       if(old_p == nullptr) {
-        return false;
+        return nullptr;
       }
       
       new_p = old_p->next_p;
     }
 
-    data = old_p->data;
+    // old_p has been removed from the stack after this
 
-    // Need GC here...
-
-    return true;
+    return old_p;
   }
   
   /*
