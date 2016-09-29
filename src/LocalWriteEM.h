@@ -226,6 +226,39 @@ class LocalWriteEM {
     // The thread has already exited
     delete gc_thread_p;
     
+    // Free all nodes currently in the GC that has not been freed
+    FreeAllGarbage();
+    
+    return;
+  }
+  
+  /*
+   * FreeAllGarbage() - This function frees all garbage nodes remaining in
+   *                    the epoch manager no matter what is the value of its
+   *                    epoch counter
+   *
+   * This function should be called in only single threaded environment. It 
+   * traverses the linked list and frees garbage node one by one. This is 
+   * usually called inside the destructor where we know all nodes deleted should
+   * be freed immediately o.w. there would be a memory leak
+   */
+  void FreeAllGarbage() {
+    GarbageNode *node_p = garbage_head_p.load();
+    
+    while(node_p != nullptr) {
+      GarbageNode *next_p = node_p->next_p;
+      
+      // Free garbage itself
+      FreeGarbageNode(node_p->garbage_p);
+      delete(node_p);
+      
+      node_p = next_p;
+    }
+    
+    // Restore it to nullptr to avoid it being used by accident
+    // in future development
+    garbage_head_p.store(nullptr);
+    
     return;
   }
   
