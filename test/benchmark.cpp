@@ -9,6 +9,8 @@ template <uint64_t core_num, typename GarbageNode>
 std::unordered_map<void *, void *>
 LocalWriteEMFactory<core_num, GarbageNode>::instance_map{};
 
+// Since the EM type is defined by the EMFactory type, we could
+// make it easier 
 using EMFactory = LocalWriteEMFactory<4, char>;
 using EM = typename EMFactory::TargetType;
 

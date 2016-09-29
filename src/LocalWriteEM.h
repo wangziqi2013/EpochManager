@@ -200,7 +200,7 @@ class LocalWriteEM {
    * should be a local cache read in most of the time) and then write
    * into its local latest enter epoch
    */
-  void AnnounceEnter(uint64_t core_id) {
+  inline void AnnounceEnter(uint64_t core_id) {
     // Under debug mopde let's assert core id is correct to avoid
     // serious bugs
     assert(core_id < core_num);
@@ -251,6 +251,15 @@ class LocalWriteEM {
   
   /*
    * DoGC() - This is the main function for doing garbage collection
+   *
+   * Note that worker threads could only access the head of linked list, which
+   * should not be modified by the GC thread, otherwise ABA problem might
+   * emerge since if we free a node during GC, and in the meantime a worker
+   * thread comes in and allocates a node that is exactly the node we
+   * just freed (malloc() tends to do that, actually) then we will have a
+   * ABA problem. ABA problem might or might not be harmful depending on the
+   * context, but it is best practice for us to aovid it since if the design
+   * is changed in the future we will have less potential undocumented problems
    */
   void DoGC() {
     // We use this to remember the minimum number of cores
@@ -304,6 +313,10 @@ class LocalWriteEM {
     return;
   }
 };
+
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
 
 /*
  * class LocalWriteEMFactory - Factory class for constructing EM instances
