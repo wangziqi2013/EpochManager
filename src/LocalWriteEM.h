@@ -399,7 +399,7 @@ class LocalWriteEM {
       GotoNextEpoch();
       DoGC();
       
-      std::chrono::milliseconds duration{sleep_ms}
+      std::chrono::milliseconds duration{sleep_ms};
       std::this_thread::sleep_for(duration);
     }
   }
