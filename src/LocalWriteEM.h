@@ -329,11 +329,18 @@ class LocalWriteEM {
   /*
    * GotoNextEpoch() - Increases the epoch counter value by 1
    */
-  void GotoNextEpoch() {
+  inline void GotoNextEpoch() {
     // Atomically increase the epoch counter
     epoch_counter->fetch_add(1);
     
     return; 
+  }
+  
+  /*
+   * GetEpochCounter() - Get the epoch counter for debugging
+   */
+  inline CounterType GetCurrentEpochCounter() {
+    return epoch_counter->load();
   }
   
   /*
@@ -423,6 +430,8 @@ class LocalWriteEM {
       std::chrono::milliseconds duration{sleep_ms};
       std::this_thread::sleep_for(duration);
     }
+    
+    dbg_printf("Built-in GC thread has exited\n");
     
     return;
   }

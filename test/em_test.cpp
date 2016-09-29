@@ -76,6 +76,7 @@ void ThreadTest() {
   }
   
   dbg_printf("    Finished waiting. Destroy\n");
+  dbg_printf("    Epoch counter = %lu\n", em->GetCurrentEpochCounter());
   
   EMFactory::FreeInstance(em);
   
