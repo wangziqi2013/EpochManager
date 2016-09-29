@@ -57,8 +57,32 @@ void FactoryTest() {
   return;
 }
 
+/*
+ * ThreadTest() - Tests whether the built in GC thread works
+ */
+void ThreadTest() {
+  // This instance must be created by the factory
+  EM *em = EMFactory::GetInstance();
+  
+  // Start GC thread
+  em->StartGCThread();
+  
+  for(int i = 0;i < 3;i++) {
+    dbg_printf("Slept for %d seconds\r", i);
+    
+    SleepFor(1000);
+  }
+  
+  EMFactory::FreeInstance(em);
+  
+  dbg_printf("Thread has exited\n");
+  
+  return;
+}
+
 int main() {
   FactoryTest();
+  ThreadTest();
   
   return 0;
 }
