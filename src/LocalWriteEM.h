@@ -410,15 +410,15 @@ class LocalWriteEM {
    * to control the frequency we do GC (and invalidate local caches of the 
    * global counter kept by each worker thread in their own CPU cores).
    */
-  void ThreadFunc() {
+  static void ThreadFunc(LocalWriteEM<core_num, GarbageType> *em) {
     // By default the thread sleeps for 50 milli seconds and then do GC
     const uint64_t sleep_ms = 50UL;
     
     // Loop on the atomic flag that will be set when destructor is called
     // (it is the first operation inside the destructor)
-    while(HasExited() == false) {
-      GotoNextEpoch();
-      DoGC();
+    while(em->HasExited() == false) {
+      em->GotoNextEpoch();
+      em->DoGC();
       
       std::chrono::milliseconds duration{sleep_ms};
       std::this_thread::sleep_for(duration);
@@ -443,7 +443,9 @@ class LocalWriteEM {
     assert(HasExited() == false);
     assert(gc_thread_p == nullptr);
     
-    gc_thread_p = new std::thread(ThreadFunc);
+    gc_thread_p = \
+      new std::thread{LocalWriteEM<core_num, GarbageType>::ThreadFunc, 
+                      this};
     
     return;
   }
@@ -539,5 +541,9 @@ class LocalWriteEMFactory {
     return;
   }
 };
+
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
 
 unsigned int GetOptimalCoreNumber();
