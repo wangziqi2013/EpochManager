@@ -15,6 +15,11 @@ using EMFactory = LocalWriteEMFactory<4, char>;
 using EM = typename EMFactory::TargetType;
 
 int main() {
+  // This prints the number of threads supported by CPU
+  // including hyper-threading, i.e. if HP is present then the actual number
+  // of cores is half
+  dbg_printf("Hardware concurrency = %u\n", std::thread::hardware_concurrency());
+  
   // This instance must be created by the factory
   EM *p = EMFactory::GetInstance();
   
