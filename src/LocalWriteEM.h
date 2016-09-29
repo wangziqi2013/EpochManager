@@ -260,8 +260,14 @@ class LocalWriteEM {
    * ABA problem. ABA problem might or might not be harmful depending on the
    * context, but it is best practice for us to aovid it since if the design
    * is changed in the future we will have less potential undocumented problems
+   *
+   * NOTE: This function also increases epoch counter
    */
   void DoGC() {
+    // Atomically increase the epoch counter - This function does not
+    // use the counter, and it just keeps it updated
+    epoch_counter.fetch_add(1);
+    
     // We use this to remember the minimum number of cores
     uint64_t min_epoch = per_core_counter_list[0]->load();
     
@@ -311,6 +317,15 @@ class LocalWriteEM {
     }
     
     return;
+  }
+  
+  /*
+   * ThreadFunc() - This is the function body for GC thread
+   *
+   * This function mainly wraps DoGC(), with a delay, the purpose of which 
+   */
+  void ThreadFunc() {
+    
   }
 };
 
