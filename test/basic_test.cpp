@@ -1,11 +1,12 @@
 
 #include "../src/AtomicStack.h"
+#include "test_suite.h"
 
 using namespace peloton;
 using namespace index;
 
 void BasicTest() {
-  dbg_printf("========== Basic Test ==========\n");
+  PrintTestName("BasicTest");
   
   AtomicStack<uint64_t> as{};
   
@@ -27,7 +28,7 @@ void BasicTest() {
 }
 
 void ThreadTest(uint64_t thread_num, uint64_t op_num) {
-  dbg_printf("========== Thread Test ==========\n");
+  PrintTestName("ThreadTest");
   
   AtomicStack<uint64_t> as{};
   
@@ -79,7 +80,7 @@ void ThreadTest(uint64_t thread_num, uint64_t op_num) {
 }
 
 void MixedTest(uint64_t thread_num, uint64_t op_num) {
-  dbg_printf("========== Mixed Test ==========\n");
+  PrintTestName("MixedTest");
 
   // Make sure thread number is an even number otherwise exit
   if((thread_num % 2) != 0) {
@@ -157,6 +158,8 @@ int main() {
   // Many data and smaller number of threads
   ThreadTest(4, 2000000);
   
+  // Half push half pop, pop loops until it succeeds
   MixedTest(32, 100000);
+  
   return 0;
 }

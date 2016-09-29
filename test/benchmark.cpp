@@ -1,6 +1,7 @@
 
 #include "../src/AtomicStack.h"
 #include "../src/LocalWriteEM.h"
+#include "test_suite.h"
 
 // This must be instanciated in the translation unit where it is
 // used. Otherwise the compiler is not able to know its existence
@@ -12,13 +13,17 @@ LocalWriteEMFactory<core_num, GarbageNode>::instance_map{};
 // Since the EM type is defined by the EMFactory type, we could
 // make it easier 
 using EMFactory = LocalWriteEMFactory<4, char>;
-using EM = typename EMFactory::TargetType;
+using EM = typename EMFactory::TargetType; 
 
-int main() {
-  // This prints the number of threads supported by CPU
-  // including hyper-threading, i.e. if HP is present then the actual number
-  // of cores is half
-  dbg_printf("Hardware concurrency = %u\n", std::thread::hardware_concurrency());
+/*
+ * FactoryTest() - Tests EM factory
+ */
+void FactoryTest() {
+  PrintTestName("FactoryTest");
+  
+  // This prints the number of threads supported by CPU 
+  // including hyper-threading
+  dbg_printf("Hardware concurrency = %u\n", GetOptimalCoreNumber());
   
   // This instance must be created by the factory
   EM *p = EMFactory::GetInstance();
@@ -33,6 +38,12 @@ int main() {
              sizeof(typename std::remove_pointer<decltype(p)>::type::ElementType));
   
   EMFactory::FreeInstance(p);
+  
+  return;
+}
+
+int main() {
+  FactoryTest();
   
   return 0;
 }
