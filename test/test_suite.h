@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <sched.h>
 #include "../src/common.h"
 
 void PrintTestName(const char *name);
