@@ -190,6 +190,8 @@ void MixedGCTest(uint64_t thread_num, uint64_t op_num) {
 
   dbg_printf("Sum = %lu; Expected = %lu\n", sum.load(), expected);
   assert(sum.load() == expected);
+  
+  dbg_printf("    GC Interval = %lu\n", em->GetGCInterval());
 
   EMFactory::FreeInstance(em);
 
