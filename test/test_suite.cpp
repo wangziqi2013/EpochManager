@@ -22,7 +22,20 @@ void SleepFor(uint64_t sleep_ms) {
   return;
 }
 
-
+/*
+ * GetThreadAffinity() - Returns the ID of the CPU thread is running on
+ *
+ * This function halts the entire process if it returns -1 which is a sign of 
+ * system call error
+ */
+int GetThreadAffinity() {
+  int core_id = sched_getcpu();
+  if(unlikely(core_id == -1)) {
+    throw 0;
+  }
+  
+  return core_id;
+}
 
 /*
  * PinToCore() - Pin the current calling thread to a particular core
