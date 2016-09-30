@@ -101,6 +101,6 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 
 int main() {
   GetThreadAffinityBenchmark();
-  SimpleBenchmark(CoreNum, 10000000);
+  SimpleBenchmark(CoreNum, 1024 * 1024 * 30);
 }
 
