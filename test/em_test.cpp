@@ -116,6 +116,7 @@ void MixedGCTest(uint64_t thread_num, uint64_t op_num) {
   
   // This instance must be created by the factory
   EM *em = EMFactory::GetInstance();
+  em->SetGCInterval(5);
 
   // This counts the number of push operation we have performed
   std::atomic<uint64_t> counter;

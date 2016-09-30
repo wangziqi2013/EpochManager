@@ -314,7 +314,7 @@ class LocalWriteEM {
    * of time to let worker threads cache the counter in their own L1 cache
    * and the counter shall stay there unchanged for a relatively long time
    */
-  inline void SetGVInterval(uint64_t interval) {
+  inline void SetGCInterval(uint64_t interval) {
     gc_interval = interval;
     
     return;
