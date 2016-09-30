@@ -26,3 +26,63 @@ void StartThreads(uint64_t num_threads, Fn &&fn, Args &&... args) {
   
   return;
 }
+
+/*
+ * class Timer - Measures time usage for testing purpose
+ */
+class Timer {
+ private:
+  std::chrono::time_point<std::chrono::system_clock> start;
+  std::chrono::time_point<std::chrono::system_clock> end;
+  
+ public: 
+ 
+  /* 
+   * Constructor
+   *
+   * It takes an argument, which denotes whether the timer should start 
+   * immediately. By default it is true
+   */
+  Timer(bool start = true) : 
+    sraet{},
+    end{} {
+    if(start == true) {
+      Start();
+    }
+    
+    return;
+  }
+  
+  /*
+   * Start() - Starts timer until Stop() is called
+   *
+   * Calling this multiple times without stopping it first is undefined
+   */
+  inline void Start() {
+    start = std::chrono::system_clock::now();
+    
+    return;
+  }
+  
+  /*
+   * Stop() - Stops timer and returns the duration between the previous Start()
+   *          and the current Stop()
+   *
+   * Return value is represented in double, and is seconds elapsed between
+   * the last Start() and this Stop()
+   */
+  inline double Stop() {
+    end = std::chrono::system_clock::now();
+    
+    return GetInterval();
+  }
+  
+  /*
+   * GetInterval() - Returns the length of the time interval between the latest
+   *                 Start() and Stop()
+   */
+  inline double GetInterval() const {
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    return elapsed_seconds.count();
+  }
+};
