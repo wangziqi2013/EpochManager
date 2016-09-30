@@ -46,7 +46,7 @@ class Timer {
    * immediately. By default it is true
    */
   Timer(bool start = true) : 
-    sraet{},
+    start{},
     end{} {
     if(start == true) {
       Start();
