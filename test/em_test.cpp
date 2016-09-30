@@ -193,7 +193,8 @@ void MixedGCTest(uint64_t thread_num, uint64_t op_num) {
   
   dbg_printf("    GC Interval = %lu\n", em->GetGCInterval());
   dbg_printf("    GC epoch counter = %lu\n", em->GetCurrentEpochCounter());
-  dbg_printf("    # of nodes freed = %lu\n", em->GetNodeFreedCount());
+  dbg_printf("    # of nodes freed before d'tor = %lu\n", 
+             em->GetNodeFreedCount());
 
   EMFactory::FreeInstance(em);
 

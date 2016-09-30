@@ -248,6 +248,9 @@ class LocalWriteEM {
     // Free all nodes currently in the GC that has not been freed
     FreeAllGarbage();
     
+    dbg_printf("    # of nodes freed in d'tor = %lu\n", GetNodeLeftCount());
+    dbg_printf("    # of nodes freed in total = %lu\n", GetNodeFreedCount());
+    
     return;
   }
   
@@ -268,10 +271,16 @@ class LocalWriteEM {
       GarbageNode *next_p = node_p->next_p;
       
       // Free garbage itself
+      // Note that this also contributes to number of nodes freed
+      // by the EM
       FreeGarbageNode(node_p->garbage_p);
       delete(node_p);
       
       node_p = next_p;
+      
+      #ifndef NDEBUG
+      node_left_count++;
+      #endif
     }
     
     // Restore it to nullptr to avoid it being used by accident
@@ -341,14 +350,28 @@ class LocalWriteEM {
     return gc_interval;
   }
   
+  
+  #ifndef NDEBUG
+  
   /*
    * GetNodeFreedCount() - Returns a debug mode counter representing how many 
    *                       times FreeGarbageNode() has been called
    */
-  #ifndef NDEBUG
   inline uint64_t GetNodeFreedCount() const {
     return node_freed_count; 
   }
+  
+  /*
+   * GetNodeLeftCount() - Return the number of nodes left uncollected when
+   *                      the EM is destroyed
+   *
+   * This should always be called after the destructor returned, o.w. 0 
+   * is returned
+   */
+  inline uint64_t GetNodeLeftCount() const {
+    return node_left_count;   
+  }
+  
   #endif
 
   /*
@@ -401,6 +424,8 @@ class LocalWriteEM {
    * If users want to write their own epoch manager to destroy objects in a 
    * customized way, then they should modify this function. Here we just 
    * call operator delete to free
+   *
+   * Note that this function must be called in single threaded environment
    */
   inline void FreeGarbageNode(GarbageType *garbage_p) {
     delete garbage_p;
