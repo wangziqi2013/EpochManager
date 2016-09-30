@@ -173,6 +173,9 @@ class LocalWriteEM {
   // necessary structure might have not been prepared properly
   // If thread is not created by this object then the pointer is set to nullptr
   std::thread *gc_thread_p;
+  
+  // This defaults to 50ms
+  uint64_t gc_interval;
  
   /*
    * Constructor 
@@ -201,6 +204,8 @@ class LocalWriteEM {
     
     // If this is nullptr then we do not wait for it in destructor
     gc_thread_p = nullptr;
+    
+    gc_interval = 50;
     
     return;
   }
@@ -300,6 +305,26 @@ class LocalWriteEM {
     exited_flag.store(true);
     
     return; 
+  }
+  
+  /*
+   * SetGCInterval() - Sets the GC interval for GC thread
+   *
+   * Afther each GC operation, the GC thread will sleep for a certain amount 
+   * of time to let worker threads cache the counter in their own L1 cache
+   * and the counter shall stay there unchanged for a relatively long time
+   */
+  inline void SetGVInterval(uint64_t interval) {
+    gc_interval = interval;
+    
+    return;
+  }
+  
+  /*
+   * GetGCIntervale() - As name suggests
+   */
+  inline uint64_t GetGCInterval() const {
+    return gc_interval;
   }
 
   /*
@@ -451,17 +476,14 @@ class LocalWriteEM {
    * global counter kept by each worker thread in their own CPU cores).
    */
   static void ThreadFunc(LocalWriteEM<core_num, GarbageType> *em) {
-    // By default the thread sleeps for 50 milli seconds and then do GC
-    const uint64_t sleep_ms = 5UL;
-    
     // Loop on the atomic flag that will be set when destructor is called
     // (it is the first operation inside the destructor)
     while(em->HasExited() == false) {
       em->GotoNextEpoch();
       em->DoGC();
       
-      std::chrono::milliseconds duration{sleep_ms};
-      std::this_thread::sleep_for(duration);
+      // Sleep for gc_interval
+      std::this_thread::sleep_for(std::chrono::milliseconds{em->GetGCInterval()});
     }
     
     dbg_printf("Built-in GC thread has exited\n");
