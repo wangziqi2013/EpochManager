@@ -56,7 +56,8 @@ class Timer {
   /*
    * Start() - Starts timer until Stop() is called
    *
-   * Calling this multiple times without stopping it first is undefined
+   * Calling this multiple times without stopping it first will reset and
+   * restart
    */
   inline void Start() {
     start = std::chrono::system_clock::now();
