@@ -176,6 +176,15 @@ class LocalWriteEM {
   
   // This defaults to 50ms
   uint64_t gc_interval;
+  
+  #ifndef NDEBUG
+  // Under debug mode we keep a counter to record how many times 
+  // FreeGarbageNode() is called by the GC thread
+  uint64_t node_freed_count;
+  
+  // Number of nodes left unfreed in the EM when it is destroyed
+  uint64_t node_left_count;
+  #endif
  
   /*
    * Constructor 
@@ -206,6 +215,11 @@ class LocalWriteEM {
     gc_thread_p = nullptr;
     
     gc_interval = 50;
+    
+    #ifndef NDEBUG
+    node_freed_count = 0;
+    node_left_count = 0;
+    #endif
     
     return;
   }
@@ -326,6 +340,16 @@ class LocalWriteEM {
   inline uint64_t GetGCInterval() const {
     return gc_interval;
   }
+  
+  /*
+   * GetNodeFreedCount() - Returns a debug mode counter representing how many 
+   *                       times FreeGarbageNode() has been called
+   */
+  #ifndef NDEBUG
+  inline uint64_t GetNodeFreedCount() const {
+    return node_freed_count; 
+  }
+  #endif
 
   /*
    * AnnounceEnter() - Announces that a thread enters the system
@@ -380,6 +404,10 @@ class LocalWriteEM {
    */
   inline void FreeGarbageNode(GarbageType *garbage_p) {
     delete garbage_p;
+    
+    #ifndef NDEBUG
+    node_freed_count++;
+    #endif
         
     return;
   }
