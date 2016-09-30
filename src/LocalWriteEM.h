@@ -248,8 +248,10 @@ class LocalWriteEM {
     // Free all nodes currently in the GC that has not been freed
     FreeAllGarbage();
     
+    #ifndef NDEBUG
     dbg_printf("    # of nodes freed in d'tor = %lu\n", GetNodeLeftCount());
     dbg_printf("    # of nodes freed in total = %lu\n", GetNodeFreedCount());
+    #endif
     
     return;
   }
