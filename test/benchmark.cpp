@@ -3,6 +3,21 @@
 #include "../src/LocalWriteEM.h"
 #include "test_suite.h"
 
+// Number of cores we test EM on (this does not have to match the number
+// of cores on the testing machine since we only test correctness but
+// not performance)
+static const uint64_t CoreNum = 8;
+
+// Declear stack and its node type here
+using StackType = AtomicStack<uint64_t>;
+using NodeType = typename StackType::NodeType;
+
+// Since the EM type is defined by the EMFactory type, we could
+// make it easier 
+using EMFactory = \
+  LocalWriteEMFactory<CoreNum, std::remove_pointer<NodeType>::type>;
+using EM = typename EMFactory::TargetType;
+
 /*
  * GetThreadAffinityBenchmark() - Measures how fast we could call this function
  */
@@ -54,12 +69,14 @@ void SimpleBenchmark() {
                 // physically we do not make any constraint here
                 uint64_t core_id = id % CoreNum;
                 
-                em->AnnounceEnter(core_id);
+                // And then announce entry on its own processor
+                for(uint64_t i = 0;i < op_num;i++) { 
+                  em->AnnounceEnter(core_id);
+                }
               };
 
   // Let threads start
   StartThreads(thread_num, func);
-
 
   EMFactory::FreeInstance(em);
 
