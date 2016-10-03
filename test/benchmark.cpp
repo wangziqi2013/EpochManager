@@ -16,7 +16,7 @@ LocalWriteEMFactory<core_num, GarbageNode>::instance_map{};
 // Number of cores we test EM on (this does not have to match the number
 // of cores on the testing machine since we only test correctness but
 // not performance)
-static const uint64_t CoreNum = 4;
+static const uint64_t CoreNum = 40;
 
 // Declear stack and its node type here
 using StackType = AtomicStack<uint64_t>;
@@ -95,12 +95,16 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
   dbg_printf("    Throughput = %f M op/sec\n", 
              static_cast<double>(thread_num * op_num) / duration / (1024.0 * 1024.0));
 
+  dbg_printf("    Throughput Per Thread = %f M op/sec\n", 
+             static_cast<double>(op_num) / duration / (1024.0 * 1024.0));
+
+
   return;
 }
 
 
 int main() {
   GetThreadAffinityBenchmark();
-  SimpleBenchmark(CoreNum, 1024 * 1024 * 30);
+  SimpleBenchmark(40, 1024 * 1024 * 30);
 }
 
