@@ -30,6 +30,39 @@ void StartThreads(uint64_t num_threads, Fn &&fn, Args &&... args) {
 }
 
 /*
+ * class Random - A random number generator
+ *
+ * This generator is a template class letting users to choose the number
+ */
+template <typename IntType,
+          IntType upper,
+          IntType lower>
+class Random {
+ private:
+  std::random_device device;
+  std::default_random_engine engine;
+  std::uniform_int_distribution<IntType> dist;
+
+ public:
+  
+  /*
+   * Constructor - Initialize random seed and distribution object
+   */
+  Random() :
+    device{},
+    engine{device},
+    dist{upper, lower}
+  {}
+  
+  /*
+   * Get() - Get a random number of specified type
+   */
+  IntType Get() {
+    
+  }
+};
+
+/*
  * class Timer - Measures time usage for testing purpose
  */
 class Timer {
