@@ -37,8 +37,8 @@ void StartThreads(uint64_t num_threads, Fn &&fn, Args &&... args) {
  * This generator is a template class letting users to choose the number
  */
 template <typename IntType,
-          IntType upper,
-          IntType lower>
+          IntType lower,
+          IntType upper>
 class Random {
  private:
   std::random_device device;
@@ -52,8 +52,8 @@ class Random {
    */
   Random() :
     device{},
-    engine{device},
-    dist{upper, lower}
+    engine{device()},
+    dist{lower, upper}
   {}
   
   /*

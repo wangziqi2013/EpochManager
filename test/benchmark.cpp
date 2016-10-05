@@ -29,6 +29,38 @@ using EMFactory = \
 using EM = typename EMFactory::TargetType;
 
 /*
+ * RandomNumberBenchmark() - Benchmark random number genrator inside C++11
+ */
+void RandomNumberBenchmark() {
+  Random<uint64_t, 0, -1> r{};
+  
+  // Avoid optimization 
+  std::vector<uint64_t> v{};
+  v.reserve(1);
+  
+  // Bring it into the cache such that we do not suffer from cache miss
+  v[0] = 1;
+  int iter = 100000000;
+  
+  Timer t{true};
+  
+  for(int i = 0;i < iter;i++) {
+    uint64_t num = r();
+    
+    // This should be a cached write, so super fast
+    v[0] = num;
+  }
+  
+  double duration = t.Stop();
+  
+  dbg_printf("Iteration = %d, Duration = %f\n", iter, duration);
+  dbg_printf("    Throughput = %f M op/sec\n", 
+             static_cast<double>(iter) / duration / 1024.0 / 1024.0);
+  
+  return;
+}
+
+/*
  * GetThreadAffinityBenchmark() - Measures how fast we could call this function
  */
 void GetThreadAffinityBenchmark() {
@@ -105,6 +137,7 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 
 int main() {
   GetThreadAffinityBenchmark();
+  RandomNumberBenchmark();
   SimpleBenchmark(40, 1024 * 1024 * 30);
 }
 
