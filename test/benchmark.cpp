@@ -31,31 +31,43 @@ using EM = typename EMFactory::TargetType;
 /*
  * RandomNumberBenchmark() - Benchmark random number genrator inside C++11
  */
-void RandomNumberBenchmark() {
-  Random<uint64_t, 0, -1> r{};
+void RandomNumberBenchmark(int thread_num, int iter) {
+  PrintTestName("RandomNumberBenchmark");
   
-  // Avoid optimization 
-  std::vector<uint64_t> v{};
-  v.reserve(1);
+  auto f = [thread_num, iter](uint64_t id) -> void {
+    Random<uint64_t, 0, -1> r{};
   
-  // Bring it into the cache such that we do not suffer from cache miss
-  v[0] = 1;
-  int iter = 100000000;
+    // Avoid optimization 
+    std::vector<uint64_t> v{};
+    v.reserve(1);
+    
+    // Bring it into the cache such that we do not suffer from cache miss
+    v[0] = 1;
+  
+    for(int i = 0;i < iter;i++) {
+      uint64_t num = r();
+      
+      // This should be a cached write, so super fast
+      v[0] = num;
+    }
+    
+    return; 
+  };
   
   Timer t{true};
   
-  for(int i = 0;i < iter;i++) {
-    uint64_t num = r();
-    
-    // This should be a cached write, so super fast
-    v[0] = num;
-  }
+  StartThreads(thread_num, f);
   
   double duration = t.Stop();
   
-  dbg_printf("Iteration = %d, Duration = %f\n", iter, duration);
+  dbg_printf("Thread num = %d, Iteration = %d, Duration = %f\n", 
+             thread_num, 
+             iter, 
+             duration);
   dbg_printf("    Throughput = %f M op/sec\n", 
              static_cast<double>(iter) / duration / 1024.0 / 1024.0);
+  dbg_printf("    Throughput = %f M op/(sec * thread)\n", 
+             static_cast<double>(iter) / duration / 1024.0 / 1024.0 / thread_num);
   
   return;
 }
@@ -137,7 +149,9 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 
 int main() {
   GetThreadAffinityBenchmark();
-  RandomNumberBenchmark();
+  RandomNumberBenchmark(8, 100000000);
   SimpleBenchmark(40, 1024 * 1024 * 30);
+  
+  return 0;
 }
 
