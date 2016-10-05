@@ -59,8 +59,15 @@ class Random {
   /*
    * Get() - Get a random number of specified type
    */
-  IntType Get() {
-    
+  inline IntType Get() {
+    return dist(engine);
+  }
+  
+  /*
+   * operator() - Grammar sugar
+   */
+  inline IntType operator()() {
+    return Get(); 
   }
 };
 
