@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <random>
+
 #include <sched.h>
 #include "../src/common.h"
 
