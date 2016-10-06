@@ -1,4 +1,12 @@
 
+/*
+ * benchmark.cpp - Contains benchmark code for measuring performance related
+ *                 numbers in this project
+ *
+ * This module should be compiled with all possible optimization flags, and
+ * also with libc debugging flag turned off
+ */
+
 #include "../src/AtomicStack.h"
 #include "../src/LocalWriteEM.h"
 #include "test_suite.h"
