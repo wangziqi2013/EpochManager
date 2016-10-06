@@ -14,6 +14,10 @@ em_test: ./src/AtomicStack.cpp ./test/em_test.cpp ./src/LocalWriteEM.cpp ./build
 	$(CXX) $(CXX_FLAGS) $^ -o ./bin/em_test
 	@ln -sf ./bin/em_test ./em_test-bin
 
+random_gen_test: ./test/random_gen_test.cpp ./build/test_suite.o
+	$(CXX) $(CXX_FLAGS) $^ -o ./bin/random_gen_test
+	@ln -sf ./bin/random_gen_test ./random_gen_test-bin
+
 ./build/test_suite.o: ./test/test_suite.cpp
 	$(CXX) $(CXX_FLAGS) $^ -c -o ./build/test_suite.o
 
