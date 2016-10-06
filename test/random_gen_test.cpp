@@ -61,7 +61,7 @@ static std::pair<double, double> StandardDev(const std::map<uint64_t, uint64_t> 
 /*
  * TestRandRandomness() - Test the randomness of numbers we generate
  */
-void TestRandRandomness(int iter, uint64_t num_salt) {
+void TestRandRandomness(int iter, uint64_t num_salt, bool print_to_file) {
   PrintTestName("TestRandRandomness");
   
   static const uint64_t lower = 10;
@@ -73,8 +73,22 @@ void TestRandRandomness(int iter, uint64_t num_salt) {
   for(uint64_t salt = 0;salt < num_salt;salt++) {
     std::map<uint64_t, uint64_t> m{};
     
+    FILE *fp = nullptr;
+    
+    if(print_to_file == true) {
+      char filename[256];
+      sprintf(filename, "random_%lu.txt", salt);
+      
+      fp = fopen(filename, "w");
+      assert(fp != nullptr);
+    }
+    
     for(int i = 0;i < iter;i++) {
       uint64_t num = r(i, salt);
+      
+      if(print_to_file == true) {
+        fprintf(fp, "%lu\n", num);
+      }
       
       // This will return false to if key already exists
       // to indicate that we should just increment
@@ -82,6 +96,10 @@ void TestRandRandomness(int iter, uint64_t num_salt) {
       if(ret.second == false) {
         ret.first->second++; 
       }
+    }
+    
+    if(print_to_file == true) {
+      fclose(fp);
     }
     
     auto ret = StandardDev(m);
@@ -98,7 +116,7 @@ void TestRandRandomness(int iter, uint64_t num_salt) {
 
 int main() {
   TestRandCorrectness(100000000);
-  TestRandRandomness(1000000, 10);
+  TestRandRandomness(1000000, 10, false);
   
   return 0; 
 }
