@@ -41,7 +41,7 @@ using EM = typename EMFactory::TargetType;
  *                            Murmurhash3, which is then used as a random
  *                            number generator
  */
-void IntHasherRandBenchmark(uint64_t iter) {
+void IntHasherRandBenchmark(uint64_t iter, uint64_t salt_num) {
   PrintTestName("IntHasherRandBenchmark");
   
   std::vector<uint64_t> v{};
@@ -50,17 +50,19 @@ void IntHasherRandBenchmark(uint64_t iter) {
   SimpleInt64Random<0, 10000000> r{};
   
   Timer t{true};
-  for(uint64_t i = 0;i < iter;i++) {
-    v[0] = r(i, 0);
+  for(uint64_t salt = 0;salt < salt_num;salt++) {
+    for(uint64_t i = 0;i < iter;i++) {
+      v[0] = r(i, salt);
+    }
   }
   
   double duration = t.Stop();
   
   dbg_printf("Iteration = %lu, Duration = %f\n", 
-             iter, 
+             iter * salt_num, 
              duration);
   dbg_printf("    Throughput = %f M op/sec\n", 
-             static_cast<double>(iter) / duration / 1024.0 / 1024.0);
+             static_cast<double>(iter * salt_num) / duration / 1024.0 / 1024.0);
              
   return;
 }
@@ -186,7 +188,7 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 
 int main() {
   GetThreadAffinityBenchmark();
-  IntHasherRandBenchmark(1000000000);
+  IntHasherRandBenchmark(100000000, 10);
   RandomNumberBenchmark(1, 100000000);
   SimpleBenchmark(40, 1024 * 1024 * 30);
   
