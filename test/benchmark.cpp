@@ -33,18 +33,17 @@ using EM = typename EMFactory::TargetType;
  *                        Murmurhash3
  */
 void IntHasherBenchmark(uint64_t iter) {
+  PrintTestName("IntHasherBenchmark");
+  
   std::vector<uint64_t> v{};
   v.reserve(1);
   
   SimpleInt64Hasher hash{};
   
   Timer t{true};
-  printf("asasasas\n");
   for(uint64_t i = 0;i < iter;i++) {
-    v[0] = i;
-    printf("%lu ", i);
+    v[0] = hash(i);
   }
-  (void)hash;
   
   double duration = t.Stop();
   
@@ -178,7 +177,7 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 
 int main() {
   GetThreadAffinityBenchmark();
-  IntHasherBenchmark(100000000);
+  IntHasherBenchmark(1000000000);
   RandomNumberBenchmark(1, 100000000);
   SimpleBenchmark(40, 1024 * 1024 * 30);
   
