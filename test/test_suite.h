@@ -35,6 +35,9 @@ void StartThreads(uint64_t num_threads, Fn &&fn, Args &&... args) {
  * class Random - A random number generator
  *
  * This generator is a template class letting users to choose the number
+ *
+ * Note that this object uses C++11 library generator which is slow, and super
+ * non-scalable. For 
  */
 template <typename IntType,
           IntType lower,
@@ -129,5 +132,41 @@ class Timer {
   inline double GetInterval() const {
     std::chrono::duration<double> elapsed_seconds = end - start;
     return elapsed_seconds.count();
+  }
+};
+
+/*
+ * class SimpleInt64Hasher - Simple hash function that hashes uint64_t
+ *                           into a value that are distributed evenly
+ *                           in the 0 and MAX interval
+ *
+ * Note that for an open addressing hash table, simply do a reflexive mapping
+ * is not sufficient, since integer keys tend to group together in a very
+ * narrow interval, using the ineteger itself as hashed value might cause
+ * aggregation
+ */
+class SimpleInt64Hasher {
+ public:
+   
+  /*
+   * operator()() - Mimics function call
+   *
+   * Note that this function must be denoted as const since in STL all
+   * hashers are stored as a constant object
+   */
+  inline uint64_t operator()(uint64_t value) const {
+    //
+    // The following code segment is copied from MurmurHash3, and is used
+    // as an answer on the Internet:
+    // http://stackoverflow.com/questions/5085915/what-is-the-best-hash-
+    //   function-for-uint64-t-keys-ranging-from-0-to-its-max-value
+    //
+    value ^= value >> 33;
+    value *= 0xff51afd7ed558ccd;
+    value ^= value >> 33;
+    value *= 0xc4ceb9fe1a85ec53;
+    value ^= value >> 33;
+
+    return value;
   }
 };
