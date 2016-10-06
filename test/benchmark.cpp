@@ -29,20 +29,21 @@ using EMFactory = \
 using EM = typename EMFactory::TargetType;
 
 /*
- * IntHasherBenchmark() - Benchmarks integer number hash function from 
- *                        Murmurhash3
+ * IntHasherRandBenchmark() - Benchmarks integer number hash function from 
+ *                            Murmurhash3, which is then used as a random
+ *                            number generator
  */
-void IntHasherBenchmark(uint64_t iter) {
-  PrintTestName("IntHasherBenchmark");
+void IntHasherRandBenchmark(uint64_t iter) {
+  PrintTestName("IntHasherRandBenchmark");
   
   std::vector<uint64_t> v{};
   v.reserve(1);
   
-  SimpleInt64Hasher hash{};
+  SimpleInt64Random<0, 10000000> r{};
   
   Timer t{true};
   for(uint64_t i = 0;i < iter;i++) {
-    v[0] = hash(i);
+    v[0] = r(i, 0);
   }
   
   double duration = t.Stop();
@@ -177,7 +178,7 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 
 int main() {
   GetThreadAffinityBenchmark();
-  IntHasherBenchmark(1000000000);
+  IntHasherRandBenchmark(1000000000);
   RandomNumberBenchmark(1, 100000000);
   SimpleBenchmark(40, 1024 * 1024 * 30);
   
