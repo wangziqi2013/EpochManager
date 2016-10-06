@@ -104,6 +104,8 @@ void TestRandRandomness(int iter, uint64_t num_salt, bool print_to_file) {
     
     auto ret = StandardDev(m);
     
+    // Note that average is a constant given iter since it's the total
+    // number of numbers we have allocated
     dbg_printf("Salt = %lu; std dev = %f; avg = %f\n", 
                salt, 
                ret.first, 
