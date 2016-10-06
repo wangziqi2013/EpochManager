@@ -29,9 +29,39 @@ void TestRandCorrectness(int iter) {
 }
 
 /*
+ * StandardDev() - Compute standard deviation
+ *
+ * 
+ */
+static std::pair<double, double> StandardDev(const std::map<uint64_t, uint64_t> &m) {
+  double avg = 0.0;
+  double squared_dev = 0.0;
+  
+  // Aggregate
+  for(auto it = m.begin();it != m.end();it++) {
+    avg += it->second; 
+  }
+  
+  // Average
+  avg /= m.size();
+  
+  // Aggregate diff
+  for(auto it = m.begin();it != m.end();it++) {
+    double diff = static_cast<double>(it->second) - avg;
+    
+    squared_dev += (diff * diff);
+  }
+  
+  // Average squared diff
+  squared_dev /= m.size();
+  
+  return sqrt(squared_dev);
+}
+
+/*
  * TestRandRandomness() - Test the randomness of numbers we generate
  */
-void TestRandRandomness(int iter, int num_salt) {
+void TestRandRandomness(int iter, uint64_t num_salt) {
   PrintTestName("TestRandRandomness");
   
   static const uint64_t lower = 10;
@@ -40,7 +70,7 @@ void TestRandRandomness(int iter, int num_salt) {
   SimpleInt64Random<lower, higher> r{};
   
   // We run with different salt to see how it distributes
-  for(int salt = 0;salt < num_salt;salt++) {
+  for(uint64_t salt = 0;salt < num_salt;salt++) {
     std::map<uint64_t, uint64_t> m{};
     
     for(int i = 0;i < iter;i++) {
@@ -53,13 +83,17 @@ void TestRandRandomness(int iter, int num_salt) {
         ret.first->second++; 
       }
     }
+    
+    dbg_printf("Salt = %lu; std dev = %f\n", salt, StandardDev(m));
   }
+  
+  return;
 }
 
 
 int main() {
   TestRandCorrectness(100000000);
-  TestRandRandomness(10000000, 10);
+  TestRandRandomness(10000000, 1);
   
   return 0; 
 }

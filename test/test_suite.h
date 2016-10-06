@@ -6,6 +6,7 @@
 #include <sched.h>
 #include "../src/common.h"
 #include <map>
+#include <cmath>
 
 void PrintTestName(const char *name);
 void SleepFor(uint64_t sleep_ms); 
