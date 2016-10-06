@@ -31,7 +31,7 @@ void TestRandCorrectness(int iter) {
 /*
  * StandardDev() - Compute standard deviation
  *
- * 
+ * The first component is std dev, and the second component is average
  */
 static std::pair<double, double> StandardDev(const std::map<uint64_t, uint64_t> &m) {
   double avg = 0.0;
@@ -55,7 +55,7 @@ static std::pair<double, double> StandardDev(const std::map<uint64_t, uint64_t> 
   // Average squared diff
   squared_dev /= m.size();
   
-  return sqrt(squared_dev);
+  return std::make_pair(sqrt(squared_dev), avg);
 }
 
 /*
@@ -84,7 +84,12 @@ void TestRandRandomness(int iter, uint64_t num_salt) {
       }
     }
     
-    dbg_printf("Salt = %lu; std dev = %f\n", salt, StandardDev(m));
+    auto ret = StandardDev(m);
+    
+    dbg_printf("Salt = %lu; std dev = %f; avg = %f\n", 
+               salt, 
+               ret.first, 
+               ret.second);
   }
   
   return;
@@ -93,7 +98,7 @@ void TestRandRandomness(int iter, uint64_t num_salt) {
 
 int main() {
   TestRandCorrectness(100000000);
-  TestRandRandomness(10000000, 1);
+  TestRandRandomness(1000000, 10);
   
   return 0; 
 }
