@@ -2,6 +2,11 @@
 CXX=g++-5
 CXX_FLAGS=-g -Wall -Werror -std=c++11 -pthread
 
+all:
+	make benchmark
+	make basic_test
+	make em_test
+
 benchmark: ./src/AtomicStack.cpp ./test/benchmark.cpp ./src/LocalWriteEM.cpp ./build/test_suite.o
 	$(CXX) $(CXX_FLAGS) -O3 -DNDEBUG $^ -o ./bin/benchmark
 	@ln -sf ./bin/benchmark ./benchmark-bin
@@ -13,10 +18,6 @@ basic_test: ./src/AtomicStack.cpp ./test/basic_test.cpp ./build/test_suite.o
 em_test: ./src/AtomicStack.cpp ./test/em_test.cpp ./src/LocalWriteEM.cpp ./build/test_suite.o
 	$(CXX) $(CXX_FLAGS) $^ -o ./bin/em_test
 	@ln -sf ./bin/em_test ./em_test-bin
-
-random_gen_test: ./test/random_gen_test.cpp ./build/test_suite.o
-	$(CXX) $(CXX_FLAGS) $^ -o ./bin/random_gen_test
-	@ln -sf ./bin/random_gen_test ./random_gen_test-bin
 
 ./build/test_suite.o: ./test/test_suite.cpp
 	$(CXX) $(CXX_FLAGS) $^ -c -o ./build/test_suite.o
