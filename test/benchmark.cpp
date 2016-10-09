@@ -114,28 +114,38 @@ void RandomNumberBenchmark(int thread_num, int iter) {
 /*
  * GetThreadAffinityBenchmark() - Measures how fast we could call this function
  */
-void GetThreadAffinityBenchmark() {
+void GetThreadAffinityBenchmark(uint64_t thread_num) {
   PrintTestName("GetThreadAffinityBenchmark");
-  
-  Timer t{true};
   
   constexpr int iter = 10000000;
   
-  // We need this to avoid the following loop being optimized out
-  std::vector<int> v{};
-  v.reserve(10);
-  
-  for(int i = 0;i < iter;i++) {
-    int core_id = GetThreadAffinity();
+  auto f = [iter](uint64_t thread_id) { 
+    // We need this to avoid the following loop being optimized out
+    std::vector<int> v{};
+    v.reserve(10);
     
-    v[0] = core_id;
-  }
+    for(int i = 0;i < iter;i++) {
+      int core_id = GetThreadAffinity();
+      
+      v[0] = core_id;
+    }
+    
+    return;
+  };
   
+  // Start Threads and timer
+  Timer t{true};
+  StartThreads(thread_num, f);
   double duration = t.Stop();
   
-  dbg_printf("Time usage (iter %d) = %f\n", iter, duration);
+  dbg_printf("Time usage (iter %d, thread %lu) = %f\n", 
+             iter, 
+             thread_num, 
+             duration);
   dbg_printf("    Throughput = %f op/second\n", 
              static_cast<double>(iter) / duration); 
+  dbg_printf("    Throughput = %f op/(second * thread)\n", 
+             static_cast<double>(iter) / duration / thread_num);
              
   return;
 }
@@ -187,9 +197,9 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 
 
 int main() {
-  GetThreadAffinityBenchmark();
+  GetThreadAffinityBenchmark(40);
   IntHasherRandBenchmark(100000000, 10);
-  RandomNumberBenchmark(1, 100000000);
+  RandomNumberBenchmark(40, 100000000);
   SimpleBenchmark(40, 1024 * 1024 * 30);
   
   return 0;
