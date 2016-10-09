@@ -71,8 +71,7 @@ class PaddedData {
  * The second template argument is the type of garbage node. We keep a 
  * pointer type to GarbageType in the garbage node.
  */
-template<uint64_t core_num,
-         typename GarbageType>
+template<typename GarbageType>
 class LocalWriteEM {
   friend class LocalWriteEMFactory<core_num, GarbageType>;
  public:
@@ -570,101 +569,6 @@ class LocalWriteEM {
       new std::thread{LocalWriteEM<core_num, GarbageType>::ThreadFunc, 
                       this};
     
-    return;
-  }
-};
-
-/////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////
-
-/*
- * class LocalWriteEMFactory - Factory class for constructing EM instances
- *
- * This class should be used as the only way of constructing and destroying
- * a LocalWriteEM instance
- */
-template<uint64_t core_num, 
-         typename GarbageType>
-class LocalWriteEMFactory {
- private:
-  // This is a map that records the pointer to instances being used
-  // and memory addresses being allocated
-  // The first is used for construction and destruction, while the latter
-  // are used for freeing the memory chunk
-  static std::unordered_map<void *, void *> instance_map;
-   
- public:
-
-  // This is the type of the EM it derives
-  using TargetType = LocalWriteEM<core_num, GarbageType>;
-
-  /*
-   * GetInstance() - Get an instance of the epoch manager
-   *
-   * We explicitly allcate a chunk of memory from the heap and align
-   * it to the 64 byte cache line boundary by always allocating one
-   * more slots
-   *
-   * This function is not thread-safe so please only call it under a
-   * single threaded environment
-   */
-  static TargetType *GetInstance() {
-    // The extra cache line size is used to aligning all elements
-    // to the cache line boundary
-    char *p = \
-      reinterpret_cast<char *>(
-        malloc(sizeof(TargetType) + CACHE_LINE_SIZE));
-                                              
-    dbg_printf("Malloc() returns p = %p\n", p);
-    
-    // 0xFFFF FFFF FFFF FFC0
-    const uint64_t cache_line_mask = ~(CACHE_LINE_SIZE - 1);
-    
-    // If p is not aligned to 64 byte boundary then make it aligned
-    // If it is aligned then this does not change it
-    void *q = reinterpret_cast<void *>(
-                reinterpret_cast<uint64_t>(
-                  p + CACHE_LINE_SIZE - 1) & cache_line_mask);
-    
-    // Insert it into the map and since it does not exist yet the
-    // insertion must be a success
-    // Map from "q" to "p", i.e. from adjusted address to allocated address
-    auto it = instance_map.insert(std::make_pair(q, static_cast<void *>(p)));
-    assert(it.second == true); (void)it;
-    
-    // At last call constructor for the class
-    // Note that we should construct on the aligned address
-    new (q) LocalWriteEM<core_num, GarbageType>{};
-    
-    return reinterpret_cast<LocalWriteEM<core_num, GarbageType> *>(q);
-  }
-
-  /*
-   * FreeInstance() - Calls destructor on the pointer and free it
-   *
-   * Note that this function is not thread-safe - please call it
-   * only during single threaded destruction
-   */
-  static void FreeInstance(TargetType *p) {
-    // Call destructor after casting it to appropriate type
-    // Note that we should call destructor on aligned address, i.e. before
-    // translating it to the malloc'ed address
-    p->~TargetType();
-
-    auto it = instance_map.find(p);
-
-    // Since it must be a valid allocated pointer we should always be able
-    // to find it
-    assert(it != instance_map.end());
-
-    // Free the original raw pointer
-    free(it->second);
-    
-    // Since we know ther iterator is always valid if we reach here
-    // so just delete the element with the iterator
-    instance_map.erase(it);
-
     return;
   }
 };
