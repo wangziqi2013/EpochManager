@@ -22,6 +22,10 @@ class PaddedData {
   static constexpr uint64_t padding_size = length - sizeof(T);
   static constexpr uint64_t total_size = length;
   
+  // Make sure no data could be crossing cache lines
+  static_assert(data_size <= CACHE_LINE_SIZE, 
+                "Data must be within the size of a cache line!");
+  
   T data;
   
   /*
