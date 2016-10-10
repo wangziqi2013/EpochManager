@@ -189,3 +189,41 @@ class SimpleInt64Random {
     return lower + value % (upper - lower);
   }
 };
+
+/*
+ * class Argv - Process argument vector of a C program
+ *
+ * Three classes of options:
+ *   1. Short option, i.e. begins with '-' followed by a single character
+ *      optionally with '=' followed by a string
+ *   2. Long option, i.e. begins with "--" followed by a string
+ *      optionally with '=' followed by a string
+ *
+ * Both 1 and 2 will be stored in a std::map for key and value retrival
+ * and option key is string, option value is empty if does not exist,
+ * or the string value if there is a value
+ *
+ *   3. Argument, i.e. without "--" and "-". 
+ *
+ * The last type of argument will be stored in std::vector in the order
+ * they appear in the argument list
+ */
+class Argv {
+ private:
+  // This is the map for string key and value
+  std::map<std::string, std::string> kv_map;
+  
+  // This is the array for string values
+  std::vector<std::string> arg_list;
+ 
+ public:
+  Argv(int argv, char **argv) {
+    assert(argc > 0);
+    assert(argc != nullptr);
+    
+    // Always ignore the first argument
+    AnalyzeArguments(argc - 1, argv + 1); 
+    
+    return;
+  }
+}
