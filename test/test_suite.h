@@ -223,19 +223,72 @@ class Argv {
   /*
    * AnalyzeArguments() - Analyze arguments in argv and dispatch them into
    *                      either key-value pairs or argument values
+   *
+   * The return value is a pair indicating whether the construction has 
+   * succeeded or not. The second argument is a string telling the reason
+   * for a failed construction
    */
-  void AnalyzeArguments(int argc, char **argv) {
+  std::pair<bool, const char *> AnalyzeArguments(int argc, char **argv) {
+    for(int i = 0;i < argc;i++) {
+      char *s = argv[i];
+      int len = strlen(s);
+      assert(len >= 1);
+      
+      // -- without anything means all following are argument values
+      if((len == 2) && (s[0] == '-') && s[1] == '-') {
+        for(int j = i + 1;j < argc;j++) {
+          // Construct string object in place
+          arg_list.emplace_back(argv[j]);
+        }
+        
+        break; 
+      }
+      
+      if(s[0] == '-') {
+        if(len == 1) {
+          return std::make_pair(false, "Unknown switch: -");
+        } else if(s[1] == '-') {
+          // We have processed '--' and '-' case
+          // Now we know this is a string with prefix '--' and there is at 
+          // least one char after '--'
+          char *key = s + 2;
+          assert(*key != '\0');
+          
+          // Advance value until we see nil or '='
+          char *value = s + 3;
+          while((*value != '=') && (*value != '\0')) {
+            value++; 
+          }
+          
+          if(*value == '=') {
+            // This delimits key and value
+            *value = '\0';
+            value++;
+          }
+          
+          kv_map[std::string{key}] = std::string{value};
+        }
+        
+        
+      }
+      
+      
+    }
     
+    return std::make_pair(true, "");
   }
  
  public:
-  Argv(int argv, char **argv) {
+  Argv(int argc, char **argv) {
     assert(argc > 0);
     assert(argc != nullptr);
     
     // Always ignore the first argument
-    AnalyzeArguments(argc - 1, argv + 1); 
+    auto ret = AnalyzeArguments(argc - 1, argv + 1); 
+    if(ret.first == false) {
+      throw ret.second; 
+    }
     
     return;
   }
-}
+};
