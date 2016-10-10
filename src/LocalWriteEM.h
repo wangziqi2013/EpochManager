@@ -134,13 +134,19 @@ class LocalWriteEM {
     }
   };
 
-  // They are stored as an array, and we pad it to 64 bytes so that the
-  // structure could be shared among cache lines
-  // Note: In order for this to work, the class itself must also
-  // be allocated on 64 byte aligned memory address
-  // To achieve this we use a static member function to do initialization
-  // and disallow arbitrary initialization
-  ElementType per_core_counter_list[core_num];
+  // Number of cores this structure mainatains
+  uint64_t core_num;
+  
+  // This is the address we should call free() on
+  void *alloc_p;
+
+  // Cache line aligned array for atomic operation
+  // TODO: Using a pointer inncreases the overhead since everytime we
+  // need to dereference this pointer
+  // If we use a static array then the overhead could be eliminated
+  // at the cost of having to statically encode the number of cores
+  // which is also undesirable
+  ElementType *per_core_counter_list_p;
  
   // This is the epoch counter that each thread needs to read when entering
   // an epoch
@@ -188,6 +194,28 @@ class LocalWriteEM {
   // Number of nodes left unfreed in the EM when it is destroyed
   uint64_t node_left_count;
   #endif
+
+ private:
+  
+  /*
+   * AlignToCacheLine() - Aligns a given memory address to the nearest cache 
+   *                      line boundary by advancing it
+   */
+  ElementType *AlignToCacheLine(void *p) {
+    // 0xFFFF FFFF FFFF FFC0 (64-bit)
+    static constexpr uint64_t cache_line_mask = ~(CACHE_LINE_SIZE - 1);
+    
+    // This is the pointer after alignment
+    ElementType *q = reinterpret_cast<ElementType *>(
+                       reinterpret_cast<uint64_t>(
+                         p + CACHE_LINE_SIZE - 1) & cache_line_mask);
+                         
+    assert((q % CACHE_LINE_SIZE) == 0);
+    
+    return q;
+  }
+
+ public:
  
   /*
    * Constructor 
@@ -196,8 +224,16 @@ class LocalWriteEM {
    * prevent construction on unaligned address. Please use WriteLocalEMFactory 
    * class to allocate it in a cache aligned manner
    */
-  LocalWriteEM() {
-    dbg_printf("C'tor for %lu cores called. p = %p\n", core_num, this);
+  LocalWriteEM(uint64_t p_core_num) {
+    dbg_printf("C'tor for %lu cores called\n", p_core_num);
+
+    core_num = p_core_num;
+    
+    // Store this for memory free
+    // Allocate one more slot for alignment
+    alloc_p = malloc((core_num + 1) * CACHE_LINE_SIZE);
+    
+    per_core_counter_list = reinterpret_cast<uint64_t>(alloc_p) + 
 
     // Initialization - all counter should be set to 0 since the global
     // epoch counter also starts at 0
