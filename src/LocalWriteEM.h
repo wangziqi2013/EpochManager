@@ -3,8 +3,7 @@
  
 static const size_t CACHE_LINE_SIZE = 64;
 
-template<uint64_t core_num,
-         typename GarbageType>
+template<typename GarbageType>
 class LocalWriteEMFactory;
 
 /*
@@ -68,12 +67,11 @@ class PaddedData {
  * the minimum live worker thread's epoch to reclaim garbage nodes whose
  * epoch of deletion < the epoch of oldest living worker thread
  *
- * The second template argument is the type of garbage node. We keep a 
+ * The template argument is the type of garbage node. We keep a 
  * pointer type to GarbageType in the garbage node.
  */
 template<typename GarbageType>
 class LocalWriteEM {
-  friend class LocalWriteEMFactory<core_num, GarbageType>;
  public:
   // It is the type of the cuonter we use to represent an epoch
   using CounterType = uint64_t;
@@ -207,11 +205,11 @@ class LocalWriteEM {
     
     // This is the pointer after alignment
     ElementType *q = reinterpret_cast<ElementType *>(
-                       reinterpret_cast<uint64_t>(
-                         p + (CACHE_LINE_SIZE - 1)) & cache_line_mask);
+                       (reinterpret_cast<uint64_t>(p) + 
+                         (CACHE_LINE_SIZE - 1)) & cache_line_mask);
                          
-    assert((q % CACHE_LINE_SIZE) == 0);
-    dbg_printf("Memory alignment: %p -> %q\n", p, q);
+    assert((reinterpret_cast<uint64_t>(q) % CACHE_LINE_SIZE) == 0);
+    dbg_printf("Memory alignment: %p -> %p\n", p, q);
     
     return q;
   }
@@ -235,7 +233,7 @@ class LocalWriteEM {
     assert(alloc_p != nullptr);
     
     // Must align it to cache line boundary (64 byte typically)
-    per_core_counter_list = AlignToCacheLine(alloc_p);
+    per_core_counter_list_p = AlignToCacheLine(alloc_p);
 
     // Initialization - all counter should be set to 0 since the global
     // epoch counter also starts at 0
@@ -575,7 +573,7 @@ class LocalWriteEM {
    * to control the frequency we do GC (and invalidate local caches of the 
    * global counter kept by each worker thread in their own CPU cores).
    */
-  static void ThreadFunc(LocalWriteEM<core_num, GarbageType> *em) {
+  static void ThreadFunc(LocalWriteEM<GarbageType> *em) {
     // Loop on the atomic flag that will be set when destructor is called
     // (it is the first operation inside the destructor)
     while(em->HasExited() == false) {
@@ -608,7 +606,7 @@ class LocalWriteEM {
     assert(gc_thread_p == nullptr);
     
     gc_thread_p = \
-      new std::thread{LocalWriteEM<core_num, GarbageType>::ThreadFunc, 
+      new std::thread{LocalWriteEM<GarbageType>::ThreadFunc, 
                       this};
     
     return;
