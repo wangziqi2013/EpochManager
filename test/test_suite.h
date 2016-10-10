@@ -288,7 +288,7 @@ class Argv {
  public:
   Argv(int argc, char **argv) {
     assert(argc > 0);
-    assert(argc != nullptr);
+    assert(argv != nullptr);
     
     // Always ignore the first argument
     auto ret = AnalyzeArguments(argc - 1, argv + 1); 

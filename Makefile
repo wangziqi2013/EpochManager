@@ -19,6 +19,10 @@ em_test: ./src/AtomicStack.cpp ./test/em_test.cpp ./src/LocalWriteEM.cpp ./build
 	$(CXX) $(CXX_FLAGS) $^ -o ./bin/em_test
 	@ln -sf ./bin/em_test ./em_test-bin
 
+arg_test: ./build/test_suite.o ./test/arg_test.cpp
+	$(CXX) $(CXX_FLAGS) $^ -o ./bin/arg_test
+	@ln -sf ./bin/arg_test ./arg_test-bin
+
 ./build/test_suite.o: ./test/test_suite.cpp
 	$(CXX) $(CXX_FLAGS) $^ -c -o ./build/test_suite.o
 
