@@ -240,7 +240,7 @@ class LocalWriteEM {
     // Initialization - all counter should be set to 0 since the global
     // epoch counter also starts at 0
     for(size_t i = 0;i < core_num;i++) {
-      (*(per_core_counter_list_p + i))->store(0);
+      per_core_counter_list_p[i]->store(0);
     }
 
     // Also set the current epoch to be 0
@@ -436,7 +436,7 @@ class LocalWriteEM {
  
     // This is a strict read/write ordering - load must always happen
     // before store
-    per_core_counter_list[core_id]->store(epoch_counter->load());
+    per_core_counter_list_p[core_id]->store(epoch_counter->load());
 
     return;
   }
@@ -518,12 +518,12 @@ class LocalWriteEM {
    */
   void DoGC() {
     // We use this to remember the minimum number of cores
-    uint64_t min_epoch = per_core_counter_list[0]->load();
+    uint64_t min_epoch = per_core_counter_list_p[0]->load();
     
     // If there are more than 1 core then we just loop through
     // counters for each core and pick the smaller one everytime
     for(uint64_t i = 1;i < core_num;i++) {
-      uint64_t counter = per_core_counter_list[i]->load();
+      uint64_t counter = per_core_counter_list_p[i]->load();
       
       if(counter < min_epoch) {
         min_epoch = counter; 
