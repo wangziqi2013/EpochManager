@@ -278,7 +278,7 @@ class Argv {
         
         kv_map[std::string{key}] = std::string{value};
       } else {
-        arg_list.emplace(s); 
+        arg_list.emplace_back(s); 
       } // s[0] == '-'
     } // loop through all arguments 
     
@@ -307,6 +307,26 @@ class Argv {
    * pointer 
    */
   std::string *GetValue(const std::string &key) {
+    auto it = kv_map.find(key);
     
+    if(it == kv_map.end()) {
+      return nullptr; 
+    } else {
+      return &it->second;
+    }
   }
-};
+  
+  /*
+   * GetKVMap() - Returns the key value map
+   */
+  const std::map<std::string, std::string> &GetKVMap() const {
+    return kv_map; 
+  }
+  
+  /*
+   * GetArgList() - Returns the argument list
+   */
+  const std::vector<std::string> &GetArgList() const {
+    return arg_list; 
+  }
+ };
