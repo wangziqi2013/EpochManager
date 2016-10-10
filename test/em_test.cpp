@@ -16,13 +16,6 @@
 using namespace peloton;
 using namespace index;
 
-// This must be instanciated in the translation unit where it is
-// used. Otherwise the compiler is not able to know its existence
-// which causes the linker to complain
-template <uint64_t core_num, typename GarbageNode>
-std::unordered_map<void *, void *>
-LocalWriteEMFactory<core_num, GarbageNode>::instance_map{};
-
 // Number of cores we test EM on (this does not have to match the number
 // of cores on the testing machine since we only test correctness but
 // not performance)
@@ -32,11 +25,8 @@ static const uint64_t CoreNum = 8;
 using StackType = AtomicStack<uint64_t>;
 using NodeType = typename StackType::NodeType;
 
-// Since the EM type is defined by the EMFactory type, we could
-// make it easier 
-using EMFactory = \
-  LocalWriteEMFactory<CoreNum, std::remove_pointer<NodeType>::type>;
-using EM = typename EMFactory::TargetType;
+// This is the type of the EM we declare
+using EM = LocalWriteEM<NodeType>;
 
 /*
  * FactoryTest() - Tests EM factory
@@ -48,15 +38,9 @@ void FactoryTest() {
   // including hyper-threading
   dbg_printf("Hardware concurrency = %u\n", GetOptimalCoreNumber());
   
-  // This instance must be created by the factory
-  EM *p = EMFactory::GetInstance();
+  EM *p = new EM{CoreNum};
   
   dbg_printf("HasExited() = %d\n", static_cast<int>(p->HasExited()));
-  
-  dbg_printf("pointer = %p\n", p);
-  dbg_printf("Multiple of 64? %d\n", (int)!((uint64_t)p % 64));
-  // Otherwise it fails 64 bit alignment test
-  assert(((uint64_t)p % 64) == 0);
   
   // Enjoy the beauty of C++11!!!!!!!
   dbg_printf("ElementType size = %lu\n",
@@ -65,7 +49,7 @@ void FactoryTest() {
   // Since HasExited() will be checked on destruction
   p->SignalExit();
   
-  EMFactory::FreeInstance(p);
+  delete p;
   
   return;
 }
@@ -75,9 +59,8 @@ void FactoryTest() {
  */
 void ThreadTest() {
   PrintTestName("ThreadTest");
-
-  // This instance must be created by the factory
-  EM *em = EMFactory::GetInstance();
+  
+  EM *em = new EM{CoreNum};
   
   // Start GC thread
   em->StartGCThread();
@@ -91,7 +74,7 @@ void ThreadTest() {
   dbg_printf("    Finished waiting. Destroy\n");
   dbg_printf("    Epoch counter = %lu\n", em->GetCurrentEpochCounter());
   
-  EMFactory::FreeInstance(em);
+  delete em;
   
   dbg_printf("Thread has exited\n");
   
@@ -114,8 +97,7 @@ void MixedGCTest(uint64_t thread_num, uint64_t op_num) {
 
   StackType as{};
   
-  // This instance must be created by the factory
-  EM *em = EMFactory::GetInstance();
+  EM *em = new EM{CoreNum};
   em->SetGCInterval(5);
 
   // This counts the number of push operation we have performed
@@ -196,7 +178,7 @@ void MixedGCTest(uint64_t thread_num, uint64_t op_num) {
   dbg_printf("    # of nodes freed before d'tor = %lu\n", 
              em->GetNodeFreedCount());
 
-  EMFactory::FreeInstance(em);
+  delete em;
 
   return;
 }
@@ -207,9 +189,7 @@ int main() {
   ThreadTest();
   
   MixedGCTest(8, 1024);
-  
   MixedGCTest(32, 1024 * 1024);
-  
   MixedGCTest(4, 1024 * 1024);
   
   return 0;
