@@ -4,6 +4,7 @@
 #include <cassert>
 #include <thread>
 #include <cstdio>
+#include <cstdlib>
 #include <vector>
 #include <unordered_map>
 #include <atomic>
