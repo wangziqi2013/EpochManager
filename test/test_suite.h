@@ -7,6 +7,8 @@
 #include "../src/common.h"
 #include <map>
 #include <cmath>
+#include <cstring>
+#include <string>
 
 void PrintTestName(const char *name);
 void SleepFor(uint64_t sleep_ms); 
@@ -215,6 +217,16 @@ class Argv {
   
   // This is the array for string values
   std::vector<std::string> arg_list;
+ 
+ private:
+  
+  /*
+   * AnalyzeArguments() - Analyze arguments in argv and dispatch them into
+   *                      either key-value pairs or argument values
+   */
+  void AnalyzeArguments(int argc, char **argv) {
+    
+  }
  
  public:
   Argv(int argv, char **argv) {
