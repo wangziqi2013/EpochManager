@@ -14,13 +14,6 @@
 using namespace peloton;
 using namespace index;
 
-// This must be instanciated in the translation unit where it is
-// used. Otherwise the compiler is not able to know its existence
-// which causes the linker to complain
-template <uint64_t core_num, typename GarbageNode>
-std::unordered_map<void *, void *>
-LocalWriteEMFactory<core_num, GarbageNode>::instance_map{};
-
 // Number of cores we test EM on (this does not have to match the number
 // of cores on the testing machine since we only test correctness but
 // not performance)
@@ -30,11 +23,7 @@ static const uint64_t CoreNum = 40;
 using StackType = AtomicStack<uint64_t>;
 using NodeType = typename StackType::NodeType;
 
-// Since the EM type is defined by the EMFactory type, we could
-// make it easier 
-using EMFactory = \
-  LocalWriteEMFactory<CoreNum, std::remove_pointer<NodeType>::type>;
-using EM = typename EMFactory::TargetType;
+using EM = LocalWriteEM<NodeType>;
 
 /*
  * IntHasherRandBenchmark() - Benchmarks integer number hash function from 
@@ -158,9 +147,7 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
   PrintTestName("SimpleBenchmark");
   
   // This instance must be created by the factory
-  EM *em = EMFactory::GetInstance();
-
-  
+  EM *em = new EM{CoreNum};
 
   auto func = [em, thread_num, op_num](uint64_t id) {
                 // This is the core ID this thread is logically pinned to
@@ -178,7 +165,7 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
   StartThreads(thread_num, func);
   double duration = t.Stop();
 
-  EMFactory::FreeInstance(em);
+  delete em;
   
   dbg_printf("Tests of %lu threads, %lu operations each took %f seconds\n",
              thread_num,
