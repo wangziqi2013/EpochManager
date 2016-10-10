@@ -208,9 +208,10 @@ class LocalWriteEM {
     // This is the pointer after alignment
     ElementType *q = reinterpret_cast<ElementType *>(
                        reinterpret_cast<uint64_t>(
-                         p + CACHE_LINE_SIZE - 1) & cache_line_mask);
+                         p + (CACHE_LINE_SIZE - 1)) & cache_line_mask);
                          
     assert((q % CACHE_LINE_SIZE) == 0);
+    dbg_printf("Memory alignment: %p -> %q\n", p, q);
     
     return q;
   }
@@ -224,21 +225,22 @@ class LocalWriteEM {
    * prevent construction on unaligned address. Please use WriteLocalEMFactory 
    * class to allocate it in a cache aligned manner
    */
-  LocalWriteEM(uint64_t p_core_num) {
-    dbg_printf("C'tor for %lu cores called\n", p_core_num);
-
-    core_num = p_core_num;
+  LocalWriteEM(uint64_t p_core_num) :
+    core_num{p_core_num} {
+    dbg_printf("C'tor for %lu cores called\n", core_num);
     
     // Store this for memory free
     // Allocate one more slot for alignment
     alloc_p = malloc((core_num + 1) * CACHE_LINE_SIZE);
+    assert(alloc_p != nullptr);
     
-    per_core_counter_list = reinterpret_cast<uint64_t>(alloc_p) + 
+    // Must align it to cache line boundary (64 byte typically)
+    per_core_counter_list = AlignToCacheLine(alloc_p);
 
     // Initialization - all counter should be set to 0 since the global
     // epoch counter also starts at 0
     for(size_t i = 0;i < core_num;i++) {
-      per_core_counter_list[i]->store(0);
+      (*(per_core_counter_list_p + i))->store(0);
     }
 
     // Also set the current epoch to be 0
