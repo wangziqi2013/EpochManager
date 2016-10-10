@@ -269,7 +269,7 @@ class LocalWriteEM {
    * Destructor - This could only be called by the factory class
    */
   ~LocalWriteEM() {
-    dbg_printf("D'tor for %lu cores called. p = %p\n", core_num, this);
+    dbg_printf("D'tor for %lu cores called\n", core_num);
     
     // If gc thread is inkoved inside this object then we wait for it
     if(gc_thread_p != nullptr) {
@@ -293,6 +293,10 @@ class LocalWriteEM {
     dbg_printf("    # of nodes freed in d'tor = %lu\n", GetNodeLeftCount());
     dbg_printf("    # of nodes freed in total = %lu\n", GetNodeFreedCount());
     #endif
+    
+    // Must free the array explicitly using the raw pointer rathter than 
+    // aligned pointer
+    free(alloc_p);
     
     return;
   }
