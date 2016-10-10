@@ -245,35 +245,42 @@ class Argv {
       }
       
       if(s[0] == '-') {
+        char *key, *value;
+        
         if(len == 1) {
           return std::make_pair(false, "Unknown switch: -");
         } else if(s[1] == '-') {
           // We have processed '--' and '-' case
           // Now we know this is a string with prefix '--' and there is at 
           // least one char after '--'
-          char *key = s + 2;
+          key = s + 2;
           assert(*key != '\0');
           
           // Advance value until we see nil or '='
-          char *value = s + 3;
-          while((*value != '=') && (*value != '\0')) {
-            value++; 
-          }
-          
-          if(*value == '=') {
-            // This delimits key and value
-            *value = '\0';
-            value++;
-          }
-          
-          kv_map[std::string{key}] = std::string{value};
+          // This makes --= a valid switch (empty string key and empty value)
+          value = s + 2;
+        } else {
+          key = s + 1;
+          value = s + 1;
         }
         
+        while((*value != '=') && (*value != '\0')) {
+          value++; 
+        }
         
-      }
-      
-      
-    }
+        // If there is a value then cut the value;
+        // otehrwise use empty as value
+        if(*value == '=') {
+          // This delimits key and value
+          *value = '\0';
+          value++;
+        }
+        
+        kv_map[std::string{key}] = std::string{value};
+      } else {
+        arg_list.emplace(s); 
+      } // s[0] == '-'
+    } // loop through all arguments 
     
     return std::make_pair(true, "");
   }
@@ -290,5 +297,16 @@ class Argv {
     }
     
     return;
+  }
+  
+  /*
+   * GetValue() - Returns the value of the key
+   *
+   * If key does not exist return nullptr
+   * If there is no value then there the returned string is empty string
+   * pointer 
+   */
+  std::string *GetValue(const std::string &key) {
+    
   }
 };
