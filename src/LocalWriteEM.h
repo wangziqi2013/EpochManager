@@ -1,5 +1,10 @@
 
-#include "common.h"
+#pragma once
+
+#ifndef _LOCAL_WRITE_EM_H
+#define _LOCAL_WRITE_EM_H
+
+#include "common.h" 
  
 static const size_t CACHE_LINE_SIZE = 64;
 
@@ -618,3 +623,5 @@ class LocalWriteEM {
 /////////////////////////////////////////////////////////////////////
 
 unsigned int GetOptimalCoreNumber();
+
+#endif

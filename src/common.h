@@ -1,6 +1,9 @@
 
 #pragma once
 
+#ifndef _COMMON_H
+#define _COMMON_H
+
 #include <cassert>
 #include <thread>
 #include <cstdio>
@@ -36,3 +39,4 @@ static void dummy(const char*, ...) {}
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
  
+#endif
