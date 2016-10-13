@@ -10,6 +10,9 @@
  * class GlobalWriteEM - An implementation of epoch-based safe memory 
  *                       reclamation scheme, using a globally visible epoch
  *                       counter as an approximation to reference counting
+ *
+ * This class takes a template argument that represents the type of garbage
+ * being collected. Please note that in order to  
  */
 template<GarbageType>
 class EpochManager {
@@ -19,26 +22,35 @@ class EpochManager {
 
   /*
    * class GarbageNode - A linked list of garbages
+   *
+   * We store a pointer to GarbageType declared in template argument to hold
+   * the garbage and put it inside a linked list
+   *
+   * Note that all members do not need to be atomic since they are 
+   * always accessed single threaded
    */
   class GarbageNode {
    public:
-    const BaseNode *node_p;
-
-    // This does not have to be atomic, since we only
-    // insert at the head of garbage list
+    const GarbageType *node_p;
     GarbageNode *next_p;
   };
 
   /*
-   * struct EpochNode - A linked list of epoch node that records thread count
+   * class EpochNode - A linked list of epoch node that keeps track of the
+   *                   number of active threads entering that epoch
    *
    * This struct is also the head of garbage node linked list, which must
    * be made atomic since different worker threads will contend to insert
-   * garbage into the head of the list
+   * garbage into the head of the list using CAS
    */
-  struct EpochNode {
+  class EpochNode {
     // We need this to be atomic in order to accurately
     // count the number of threads
+    // Note that contention on this variable is still possible:
+    //    the epoch thread need to check its value and then act
+    //     accordingly. If in the meantime between checking and 
+    //     acting a thread comes and increases the epoch counter then
+    //     the current epoch should not be recycled
     std::atomic<int> active_thread_count;
 
     // We need this to be atomic to be able to
@@ -70,13 +82,14 @@ class EpochManager {
   // Otherwise it points to a thread created by EpochManager internally
   std::thread *thread_p;
 
+  #ifdef NDEBUG
   // The counter that counts how many free is called
   // inside the epoch manager
   // NOTE: We cannot precisely count the size of memory freed
   // since sizeof(Node) does not reflect the true size, since
   // some nodes are embedded with complicated data structure that
   // maintains its own memory
-  #ifdef BWTREE_DEBUG
+  
   // Number of nodes we have freed
   size_t freed_count;
 
@@ -97,15 +110,12 @@ class EpochManager {
    * NOTE: We do not start thread here since the init of bw-tree itself
    * might take a long time
    */
-  EpochManager(BwTree *p_tree_p) :
-    tree_p{p_tree_p} {
-    current_epoch_p = new EpochNode{};
+  EpochManager() {
+    // Creates the initial epoch to count active threads
+    current_epoch_p.store(new EpochNode{});
 
-    // These two are atomic variables but we could
-    // simply assign to them
-    current_epoch_p->active_thread_count = 0;
+    current_epoch_p->active_thread_count.store(0);
     current_epoch_p->garbage_list_p = nullptr;
-
     current_epoch_p->next_p = nullptr;
 
     head_epoch_p = current_epoch_p;
@@ -116,9 +126,10 @@ class EpochManager {
     // This is used to notify the cleaner thread that it has ended
     exited_flag.store(false);
 
+    #ifdef NDEBUG
     // Initialize atomic counter to record how many
     // freed has been called inside epoch manager
-    #ifdef BWTREE_DEBUG
+    
     freed_count = 0UL;
     freed_id_count = 0UL;
 
