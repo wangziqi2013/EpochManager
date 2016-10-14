@@ -447,11 +447,9 @@ class GlobalWriteEM {
       PerformGarbageCollection();
 
       // Sleep for 50 ms
-      std::chrono::milliseconds duration(GC_INTERVAL);
+      std::chrono::milliseconds duration{GC_INTERVAL};
       std::this_thread::sleep_for(duration);
     }
-
-    bwt_printf("exit flag is true; thread return\n");
 
     return;
   }
