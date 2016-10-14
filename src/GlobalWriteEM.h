@@ -412,8 +412,20 @@ class GlobalWriteEM {
     // The order is important - If CreateNewEpoch() is called
     // before ClearEpoch() then very likely contention will
     // happen on current_epoch_p, in a sense that:
-    //   1. Worker thread load current_epoch_p
-    //   2.  
+    //   1. Worker thread load current_epoch_p, and its counter = 0
+    //      Assume head_epoch_p == current_epoch_p at this moment
+    //   2. CreateNewEpoch() moves current_epoch_p to the newly created
+    //      epoch node
+    //   3. ClearEpoch() latches head_epoch_p, which assigns a large negative
+    //      number to its counter
+    //   4. Worker thread fetch_add() the counter, failure!!!
+    //
+    // However, with the sequence of ClearEpoch() and CreateNewEpoch() reversed
+    // such changes are really slim or even negligible, since the interval 
+    // between CreateNewEpoch() and ClearEpoch() would almost definitely
+    // let the worker thread pass without getting a negative number from
+    // fetch_add()
+     
     ClearEpoch();
     CreateNewEpoch();
     
