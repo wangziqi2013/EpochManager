@@ -31,7 +31,7 @@ class GlobalWriteEM {
    */
   class GarbageNode {
    public:
-    const GarbageType *node_p;
+    GarbageType *node_p;
     GarbageNode *next_p;
   };
 
@@ -44,6 +44,7 @@ class GlobalWriteEM {
    * garbage into the head of the list using CAS
    */
   class EpochNode {
+   public:
     // We need this to be atomic in order to accurately
     // count the number of threads
     // Note that contention on this variable is still possible:
@@ -121,7 +122,7 @@ class GlobalWriteEM {
     // Creates the initial epoch to count active threads
     current_epoch_p = new EpochNode{};
 
-    current_epoch_p->active_thread_count.store(0);
+    current_epoch_p->active_thread_count.store(0L);
     current_epoch_p->garbage_list_p = nullptr;
     current_epoch_p->next_p = nullptr;
 
@@ -221,7 +222,7 @@ class GlobalWriteEM {
   void CreateNewEpoch() {
     EpochNode *epoch_node_p = new EpochNode{};
 
-    epoch_node_p->active_thread_count.store(0);
+    epoch_node_p->active_thread_count.store(0L);
     epoch_node_p->garbage_list_p.store(nullptr);
 
     // We always append to the tail of the linked list
@@ -291,8 +292,11 @@ class GlobalWriteEM {
    * NOTE: It is possible that prev_count < 0, because in ClearEpoch()
    * the cleaner thread will decrease the epoch counter by a large amount
    * to prevent this function using an epoch currently being recycled
+   *
+   * NOTE 2: Return value is an opaque type (void *) which is meaningless 
+   * to the caller, and is only used when leave the epoch
    */
-  inline EpochNode *JoinEpoch() {
+  inline void *JoinEpoch() {
     int64_t prev_count;
     EpochNode *epoch_p;
     
@@ -321,10 +325,10 @@ class GlobalWriteEM {
    * After an epoch has been cleared all memories allocated on
    * and before that epoch could safely be deallocated
    */
-  inline void LeaveEpoch(EpochNode *epoch_p) {
+  inline void LeaveEpoch(void *epoch_p) {
     // This might return a negative value if the current epoch
     // is being cleaned
-    epoch_p->active_thread_count.fetch_sub(1);
+    reinterpret_cast<EpochNode *>(epoch_p)->active_thread_count.fetch_sub(1);
 
     #ifdef BWTREE_DEBUG
     epoch_leave.fetch_add(1);
@@ -360,11 +364,14 @@ class GlobalWriteEM {
     // *OR* there is no epoch left depending on whether 
     // current_epoch_p == nullptr
     while(head_epoch_p != current_epoch_p) {
+      int64_t expected_thread_count = 0L;
       // Latch it using a very large negative number, such that all
       // threads trying to fetch_add() it will get a negative number
       // and thus try to reload current epoch pointer
       bool ret = \
-        head_epoch_p->active_thread_count.compare_exchange_strong(0, INT64_MIN);
+        head_epoch_p->\
+          active_thread_count.\
+            compare_exchange_strong(expected_thread_count, INT64_MIN);
         
       // The head epoch is not 0; could not recollect it
       if(ret == false) {
