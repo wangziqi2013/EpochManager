@@ -198,14 +198,10 @@ void GEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
   // This instance must be created by the factory
   GEM *em = new GEM{};
 
-  auto func = [em, thread_num, op_num](uint64_t id) {
-                // This is the core ID this thread is logically pinned to
-                // physically we do not make any constraint here
-                uint64_t core_id = id % CoreNum;
-                
+  auto func = [em, op_num](uint64_t id) {
                 // And then announce entry on its own processor
-                for(uint64_t i = 0;i < op_num;i++) { 
-                  auto epoch_node_p = em->EnterEpoch();
+                for(uint64_t i = 0;i < op_num;i++) {
+                  auto epoch_node_p = em->JoinEpoch();
                   em->LeaveEpoch(epoch_node_p);
                 }
               };
@@ -251,6 +247,7 @@ int main(int argc, char **argv) {
   
   dbg_printf("*** Using thread_num = %lu\n", thread_num);
   
+  //if(argc == 1 || )
   GetThreadAffinityBenchmark(thread_num);
   IntHasherRandBenchmark(100000000, 10);
   RandomNumberBenchmark(thread_num, 100000000);
