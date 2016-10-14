@@ -71,6 +71,7 @@ class GlobalWriteEM {
   // This must be atomic and read/write to this variable should be synchronized
   // Consider the following case:
   //   1. CPU 0's epoch manager changes this pointer by creating a new epoch
+  //       * CONTEXT SWITCH * -> MEMORY BARRIER HERE?
   //   2. CPU 0's worker thread enters the new epoch
   //      CPU 0's worker thread access node N
   //   3. CPU 1's worker thread has not yet seen the update, enters old epoch
@@ -82,7 +83,7 @@ class GlobalWriteEM {
   //   6. CPU 0's worker thread access node N, but it has been freed
   //      Ouch!!!!!
   //
-  std::atomic<EpochNode *> current_epoch_p;
+  EpochNode * current_epoch_p;
 
   // This flag indicates whether the destructor is running
   // If it is true then GC thread should not clean
@@ -118,14 +119,14 @@ class GlobalWriteEM {
    */
   GlobalWriteEM() {
     // Creates the initial epoch to count active threads
-    current_epoch_p.store(new EpochNode{});
+    current_epoch_p = new EpochNode{};
 
     current_epoch_p->active_thread_count.store(0);
     current_epoch_p->garbage_list_p = nullptr;
     current_epoch_p->next_p = nullptr;
 
     // This write is always done by epoch thread
-    head_epoch_p = current_epoch_p.load();
+    head_epoch_p = current_epoch_p;
 
     // We allocate and run this later
     thread_p = nullptr;
@@ -332,185 +333,17 @@ try_join_again:
   }
 
   /*
-   * FreeEpochDeltaChain() - Free a delta chain (used by EpochManager)
+   * FreeGarbageNode() - Free a garbage node by GC thread
    *
-   * This function differs from the one of the same name in BwTree definition
-   * in the sense that for tree destruction there are certain node
-   * types not being accepted. But in EpochManager we must support a wider
-   * range of node types.
-   *
-   * NOTE: For leaf remove node and inner remove, the removed node id should
-   * also be freed inside this function. This is because the Node ID might
-   * be accessed by some threads after the time the remove node was sent
-   * here. So we need to make sure all accessing threads have exited before
-   * recycling NodeID
+   * This function should be overloaded if the default free operation
+   * is not simply deleting the garbage node
    */
-  void FreeEpochDeltaChain(const BaseNode *node_p) {
-    const BaseNode *next_node_p = node_p;
-
-    while(1) {
-      node_p = next_node_p;
-      assert(node_p != nullptr);
-
-      NodeType type = node_p->GetType();
-
-      switch(type) {
-        case NodeType::LeafInsertType:
-          next_node_p = ((LeafInsertNode *)node_p)->child_node_p;
-
-          delete (LeafInsertNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-          break;
-        case NodeType::LeafDeleteType:
-          next_node_p = ((LeafDeleteNode *)node_p)->child_node_p;
-
-          delete (LeafDeleteNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          break;
-        case NodeType::LeafSplitType:
-          next_node_p = ((LeafSplitNode *)node_p)->child_node_p;
-
-          delete (LeafSplitNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          break;
-        case NodeType::LeafMergeType:
-          FreeEpochDeltaChain(((LeafMergeNode *)node_p)->child_node_p);
-          FreeEpochDeltaChain(((LeafMergeNode *)node_p)->right_merge_p);
-
-          delete (LeafMergeNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          // Leaf merge node is an ending node
-          return;
-        case NodeType::LeafRemoveType:
-          // This recycles node ID
-          tree_p->InvalidateNodeID(((LeafRemoveNode *)node_p)->removed_id);
-
-          delete (LeafRemoveNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          freed_id_count++;
-          #endif
-
-          // We never try to free those under remove node
-          // since they will be freed by recursive call from
-          // merge node
-          //
-          // TODO: Put remove node into garbage list after
-          // IndexTermDeleteDelta was posted (this could only be done
-          // by one thread that succeeds CAS)
-          return;
-        case NodeType::LeafType:
-          delete (LeafNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          // We have reached the end of delta chain
-          return;
-        case NodeType::InnerInsertType:
-          next_node_p = ((InnerInsertNode *)node_p)->child_node_p;
-
-          delete (InnerInsertNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          break;
-        case NodeType::InnerDeleteType:
-          next_node_p = ((InnerDeleteNode *)node_p)->child_node_p;
-
-          delete (InnerDeleteNode *)node_p;
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          break;
-        case NodeType::InnerSplitType:
-          next_node_p = ((InnerSplitNode *)node_p)->child_node_p;
-
-          delete (InnerSplitNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          break;
-        case NodeType::InnerMergeType:
-          FreeEpochDeltaChain(((InnerMergeNode *)node_p)->child_node_p);
-          FreeEpochDeltaChain(((InnerMergeNode *)node_p)->right_merge_p);
-
-          delete (InnerMergeNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          // Merge node is also an ending node
-          return;
-        case NodeType::InnerRemoveType:
-          // Recycle NodeID here together with RemoveNode
-          // Since we need to guatantee all threads that could potentially
-          // see the remove node exit before cleaning the NodeID
-          tree_p->InvalidateNodeID(((InnerRemoveNode *)node_p)->removed_id);
-
-          delete (InnerRemoveNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          freed_id_count++;
-          #endif
-
-          // We never free nodes under remove node
-          return;
-        case NodeType::InnerType:
-          delete (InnerNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          return;
-        case NodeType::InnerAbortType:
-          // NOTE: Deleted abort node is also appended to the
-          // garbage list, to prevent other threads reading the
-          // wrong type after the node has been put into the
-          // list (if we delete it directly then this will be
-          // a problem)
-          delete (InnerAbortNode *)node_p;
-
-          #ifdef BWTREE_DEBUG
-          freed_count++;
-          #endif
-
-          // Inner abort node is also a terminating node
-          // so we do not delete the beneath nodes, but just return
-          return;
-        default:
-          // This does not include INNER ABORT node
-          bwt_printf("Unknown node type: %d\n", (int)type);
-
-          assert(false);
-          return;
-      } // switch
-    } // while 1
+  void FreeGarbageNode(GarbageNode *node_p) {
+    delete node_p;
+    
+    #ifdef NDEBUG
+    freed_count++;  
+    #endif 
 
     return;
   }
@@ -525,16 +358,10 @@ try_join_again:
    * only called by the cleaner thread
    */
   void ClearEpoch() {
-    bwt_printf("Start to clear epoch\n");
-
-    while(1) {
-      // Even if current_epoch_p is nullptr, this should work
-      if(head_epoch_p == current_epoch_p) {
-        bwt_printf("Current epoch is head epoch. Do not clean\n");
-
-        break;
-      }
-
+    // Keep cleaning until this is the only epoch left
+    // *OR* there is no epoch left depending on whether 
+    // current_epoch_p == nullptr
+    while(head_epoch_p != current_epoch_p) {
       // Since it could only be acquired and released by worker thread
       // the value must be >= 0
       int active_thread_count = head_epoch_p->active_thread_count.load();
@@ -543,8 +370,6 @@ try_join_again:
       // If we have seen an epoch whose count is not zero then all
       // epochs after that are protected and we stop
       if(active_thread_count != 0) {
-        bwt_printf("Head epoch is not empty. Return\n");
-
         break;
       }
 
