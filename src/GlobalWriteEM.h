@@ -14,7 +14,7 @@
  * This class takes a template argument that represents the type of garbage
  * being collected. Please note that in order to  
  */
-template<GarbageType>
+template<typename GarbageType>
 class GlobalWriteEM {
  public:
   // Garbage collection interval (milliseconds)
@@ -51,7 +51,7 @@ class GlobalWriteEM {
     //     accordingly. If in the meantime between checking and 
     //     acting a thread comes and increases the epoch counter then
     //     the current epoch should not be recycled
-    std::atomic<int> active_thread_count;
+    std::atomic<int64_t> active_thread_count;
 
     // We need this to be atomic to be able to
     // add garbage nodes without any race condition
@@ -178,7 +178,7 @@ class GlobalWriteEM {
       // Free memory
       delete thread_p;
       
-      bwt_printf("Internal GC Thread stops\n");
+      dbg_printf("Internal GC Thread stops\n");
     }
 
     // So that in the following function the comparison
@@ -247,7 +247,7 @@ class GlobalWriteEM {
    * NOTE: This function is called by worker threads so it has
    * to consider race conditions
    */
-  void AddGarbageNode(const BaseNode *node_p) {
+  void AddGarbageNode(const GarbageType *node_p) {
     // We need to keep a copy of current epoch node
     // in case that this pointer is increased during
     // the execution of this function
@@ -293,16 +293,19 @@ class GlobalWriteEM {
    * to prevent this function using an epoch currently being recycled
    */
   inline EpochNode *JoinEpoch() {
+    int64_t prev_count;
+    EpochNode *epoch_p;
+    
     do {
       // Contention: current_epoch_p might be moved after we
       // read it, and then it could be under GC
       // So we should check whether it is latched by GC thread
-      EpochNode *epoch_p = current_epoch_p;
+      epoch_p = current_epoch_p;
   
       // If the value is < 0 then we know the current epoch is being latched
       // by the GC thread and will be soon removed.
       // Thus we try reloading the current epoch pointer and try again
-      int64_t prev_count = epoch_p->active_thread_count.fetch_add(1);
+      prev_count = epoch_p->active_thread_count.fetch_add(1);
     } while(prev_count < 0);
 
     #ifdef BWTREE_DEBUG
@@ -331,12 +334,12 @@ class GlobalWriteEM {
   }
 
   /*
-   * FreeGarbageNode() - Free a garbage node by GC thread
+   * FreeGarbageType() - Free a garbage type node by GC thread
    *
    * This function should be overloaded if the default free operation
    * is not simply deleting the garbage node
    */
-  void FreeGarbageNode(GarbageNode *node_p) {
+  void FreeGarbageType(GarbageType *node_p) {
     delete node_p;
     
     #ifdef NDEBUG
@@ -361,7 +364,7 @@ class GlobalWriteEM {
       // threads trying to fetch_add() it will get a negative number
       // and thus try to reload current epoch pointer
       bool ret = \
-        head_epoch_p->active_thread_count.compare_exchange_strong(0, INT_MIN);
+        head_epoch_p->active_thread_count.compare_exchange_strong(0, INT64_MIN);
         
       // The head epoch is not 0; could not recollect it
       if(ret == false) {
@@ -381,7 +384,7 @@ class GlobalWriteEM {
       for(const GarbageNode *garbage_node_p = head_epoch_p->garbage_list_p.load();
           garbage_node_p != nullptr;
           garbage_node_p = next_garbage_node_p) {
-        FreeGarbageNode(garbage_node_p->node_p);
+        FreeGarbageType(garbage_node_p->node_p);
         next_garbage_node_p = garbage_node_p->next_p;
 
         delete garbage_node_p;
