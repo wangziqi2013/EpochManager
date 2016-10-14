@@ -317,6 +317,43 @@ class Argv {
   }
   
   /*
+   * GetValueAsUL() - This function returns value as a unsigned long integer
+   *                  the length of which is platform dependent
+   *
+   * Whether the value is correctly parsed or not depends on the input. This
+   * function checks correctness by:
+   *   1. Call std::atoul() to convert the number in a local buffer
+   *   2. Call std::to_string() to cast it back to string and check against
+   *      the stored string object. If they are not equivalent then we
+   *      know the digits are not parsed correctly
+   *
+   * The returned value is a pointer to its static variable. The reason for
+   * choosing returning pointer is that if the number is not parsed
+   * correctly we just return nullptr instead, and let caller check
+   *
+   * This function is not thread-safe since it uses global variable
+   */
+  unsigned long *GetValueAsUL(const std::string &key) {
+    static unsigned long result = 0;
+    
+    std::string *value = GetValue(key);
+    if(value == nullptr) {
+      return nullptr; 
+    }
+    
+    // Convert string to number and then cast it back
+    result = std::stoul(*value);
+    std::string t = std::to_string(result);
+    
+    // If not equal we know parsing failed
+    if(t != *value) {
+      return nullptr; 
+    }
+    
+    return &result;
+  }
+  
+  /*
    * GetKVMap() - Returns the key value map
    */
   const std::map<std::string, std::string> &GetKVMap() const {
