@@ -9,6 +9,7 @@
 
 #include "../src/AtomicStack.h"
 #include "../src/LocalWriteEM.h"
+#include "../src/GlobalWriteEM.h"
 #include "test_suite.h"
 
 using namespace peloton;
@@ -23,7 +24,9 @@ static const uint64_t CoreNum = 40;
 using StackType = AtomicStack<uint64_t>;
 using NodeType = typename StackType::NodeType;
 
-using EM = LocalWriteEM<NodeType>;
+// EM type declaration
+using LEM = LocalWriteEM<NodeType>;
+using GEM = GlobalWriteEM<NodeType>;
 
 /*
  * IntHasherRandBenchmark() - Benchmarks integer number hash function from 
@@ -140,14 +143,14 @@ void GetThreadAffinityBenchmark(uint64_t thread_num) {
 }
 
 /*
- * SimpleBenchmark() - Benchmark how EM works without workload - just announce
- *                     entry & exit and it's all       
+ * LEMSimpleBenchmark() - Benchmark how LocalWriteEM works without workload - 
+ *                        just announce entry & exit and it's all       
  */
-void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
-  PrintTestName("SimpleBenchmark");
+void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
+  PrintTestName("LEMSimpleBenchmark");
   
   // This instance must be created by the factory
-  EM *em = new EM{CoreNum};
+  LEM *em = new LEM{CoreNum};
 
   auto func = [em, thread_num, op_num](uint64_t id) {
                 // This is the core ID this thread is logically pinned to
@@ -160,8 +163,55 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
                 }
               };
 
+  // Let timer start and then start threads
   Timer t{true};
-  // Let threads start
+  StartThreads(thread_num, func);
+  double duration = t.Stop();
+
+  delete em;
+  
+  dbg_printf("Tests of %lu threads, %lu operations each took %f seconds\n",
+             thread_num,
+             op_num,
+             duration);
+             
+  dbg_printf("    Throughput = %f M op/sec\n", 
+             static_cast<double>(thread_num * op_num) / duration / (1024.0 * 1024.0));
+
+  dbg_printf("    Throughput Per Thread = %f M op/sec\n", 
+             static_cast<double>(op_num) / duration / (1024.0 * 1024.0));
+
+
+  return;
+}
+
+/*
+ * GEMSimpleBenchmark() - Runs GlobalWriteEM repeatedly for benchmark numbers
+ *
+ * For global EM since it uses coarse grained reference counting, we have to
+ * increase and decrease the counter whenever a thread enters and leaves the 
+ * epoch, which is two times the overhead a LocalWriteEM would have
+ */
+void GEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
+  PrintTestName("GEMSimpleBenchmark");
+  
+  // This instance must be created by the factory
+  GEM *em = new GEM{};
+
+  auto func = [em, thread_num, op_num](uint64_t id) {
+                // This is the core ID this thread is logically pinned to
+                // physically we do not make any constraint here
+                uint64_t core_id = id % CoreNum;
+                
+                // And then announce entry on its own processor
+                for(uint64_t i = 0;i < op_num;i++) { 
+                  auto epoch_node_p = em->EnterEpoch();
+                  em->LeaveEpoch(epoch_node_p);
+                }
+              };
+
+  // Let timer start and then start threads
+  Timer t{true};
   StartThreads(thread_num, func);
   double duration = t.Stop();
 
@@ -204,7 +254,8 @@ int main(int argc, char **argv) {
   GetThreadAffinityBenchmark(thread_num);
   IntHasherRandBenchmark(100000000, 10);
   RandomNumberBenchmark(thread_num, 100000000);
-  SimpleBenchmark(thread_num, 1024 * 1024 * 30);
+  LEMSimpleBenchmark(thread_num, 1024 * 1024 * 30);
+  GEMSimpleBenchmark(thread_num, 1024 * 1024 * 10);
   
   return 0;
 }
