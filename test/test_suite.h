@@ -327,30 +327,37 @@ class Argv {
    *      the stored string object. If they are not equivalent then we
    *      know the digits are not parsed correctly
    *
-   * The returned value is a pointer to its static variable. The reason for
-   * choosing returning pointer is that if the number is not parsed
-   * correctly we just return nullptr instead, and let caller check
+   * This function takes a pointer argument pointing to the value that
+   * will be modified if the argument value is found and is legal.
+   * The return value is true if either the argument value is not found
+   * or it is found and legal. If the value is found but illegal then 
+   * return value is false
    *
    * This function is not thread-safe since it uses global variable
    */
-  unsigned long *GetValueAsUL(const std::string &key) {
-    static unsigned long result = 0;
+  bool GetValueAsUL(const std::string &key,
+                    unsigned long *result_p) {
+    const std::string *value = GetValue(key);
     
-    std::string *value = GetValue(key);
+    // Not found: not modified, return true 
     if(value == nullptr) {
-      return nullptr; 
+      return true;
     }
     
-    // Convert string to number and then cast it back
-    result = std::stoul(*value);
-    std::string t = std::to_string(result);
+    unsigned long result;
     
-    // If not equal we know parsing failed
-    if(t != *value) {
-      return nullptr; 
-    }
+    // Convert string to number; cathing std::invalid_argumrnt to deal with
+    // invalid format
+    try {
+      result = std::stoul(*value);
+    } catch(...) {
+      return false; 
+    } 
     
-    return &result;
+    *result_p = result;
+    
+    // Found: Modified, return true
+    return true;
   }
   
   /*
