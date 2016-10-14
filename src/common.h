@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <atomic>
 #include <thread>
+#include <cstdint> 
 
 #define DEBUG_PRINT
 
