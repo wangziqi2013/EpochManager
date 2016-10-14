@@ -15,7 +15,7 @@
  * being collected. Please note that in order to  
  */
 template<GarbageType>
-class EpochManager {
+class GlobalWriteEM {
  public:
   // Garbage collection interval (milliseconds)
   constexpr static int GC_INTERVAL = 50;
@@ -83,20 +83,14 @@ class EpochManager {
   std::thread *thread_p;
 
   #ifdef NDEBUG
-  // The counter that counts how many free is called
-  // inside the epoch manager
-  // NOTE: We cannot precisely count the size of memory freed
-  // since sizeof(Node) does not reflect the true size, since
-  // some nodes are embedded with complicated data structure that
-  // maintains its own memory
+  // Statistical maintained for epoches
   
   // Number of nodes we have freed
   size_t freed_count;
 
-  // Number of NodeID we have freed
-  size_t freed_id_count;
-
   // These two are used for debugging
+  // They do not have to be atomic since these two are only accessed by
+  // the epoch thread, so R/W atomicity could be guaranteed
   size_t epoch_created;
   size_t epoch_freed;
 
@@ -110,7 +104,7 @@ class EpochManager {
    * NOTE: We do not start thread here since the init of bw-tree itself
    * might take a long time
    */
-  EpochManager() {
+  GlobalWriteEM() {
     // Creates the initial epoch to count active threads
     current_epoch_p.store(new EpochNode{});
 
@@ -131,14 +125,13 @@ class EpochManager {
     // freed has been called inside epoch manager
     
     freed_count = 0UL;
-    freed_id_count = 0UL;
 
     // It is not 0UL since we create an initial epoch on initialization
     epoch_created = 1UL;
     epoch_freed = 0UL;
 
-    epoch_join = 0UL;
-    epoch_leave = 0UL;
+    epoch_join.store(0);
+    epoch_leave.store(0);
     #endif
 
     return;
@@ -154,7 +147,7 @@ class EpochManager {
    * NOTE: If no internal GC is started then thread_p would be a nullptr
    * and we neither wait nor free the pointer.
    */
-  ~EpochManager() {
+  ~GlobalWriteEM() {
     // Set stop flag and let thread terminate
     // Also if there is an external GC thread then it should
     // check this flag everytime it does cleaning since otherwise
@@ -165,21 +158,13 @@ class EpochManager {
     // If thread pointer is nullptr then we know the GC thread
     // is not started. In this case do not wait for the thread, and just
     // call destructor
-    //
-    // NOTE: The destructor routine is not thread-safe, so if an external
-    // GC thread is being used then that thread should check for
-    // exited_flag everytime it wants to do GC
-    //
-    // If the external thread calls ThreadFunc() then it is safe
     if(thread_p != nullptr) {
-      bwt_printf("Waiting for thread\n");
-      
       thread_p->join();
 
       // Free memory
       delete thread_p;
       
-      bwt_printf("Thread stops\n");
+      bwt_printf("Internal GC Thread stops\n");
     }
 
     // So that in the following function the comparison
@@ -190,39 +175,19 @@ class EpochManager {
     // 0, and therefore this should proceed way to the end
     ClearEpoch();
 
-    // If we have a bug (currently there is one) then as a temporary
-    // measure just force cleaning all epoches no matter whether they
-    // are cleared or not
-    if(head_epoch_p != nullptr) {
-      bwt_printf("ERROR: After cleanup there is still epoch left\n");
-      bwt_printf("==============================================\n");
-      bwt_printf("DUMP\n");
-
-      for(EpochNode *epoch_node_p = head_epoch_p;
-          epoch_node_p != nullptr;
-          epoch_node_p = epoch_node_p->next_p) {
-        bwt_printf("Active thread count: %d\n",
-               epoch_node_p->active_thread_count.load());
-        epoch_node_p->active_thread_count = 0;
-      }
-
-      bwt_printf("RETRY CLEANING...\n");
-      ClearEpoch();
-    }
-
+    // Since we guarantee all counters must be cleared at this point,
+    // and we called ClearEpoch() just now, this should work
     assert(head_epoch_p == nullptr);
-    bwt_printf("Garbage Collector has finished freeing all garbage nodes\n");
 
-    #ifdef BWTREE_DEBUG
-    bwt_printf("Stat: Freed %lu nodes and %lu NodeID by epoch manager\n",
-               freed_count,
-               freed_id_count);
+    #ifdef NDEBUG
+    dbg_printf("Stat: Freed %lu nodes by epoch manager\n",
+               freed_count);
 
-    bwt_printf("      Epoch created = %lu; epoch freed = %lu\n",
+    dbg_printf("      Epoch created = %lu; epoch freed = %lu\n",
                epoch_created,
                epoch_freed);
 
-    bwt_printf("      Epoch join = %lu; epoch leave = %lu\n",
+    dbg_printf("      Epoch join = %lu; epoch leave = %lu\n",
                epoch_join.load(),
                epoch_leave.load());
     #endif
