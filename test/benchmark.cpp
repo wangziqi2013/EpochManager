@@ -186,11 +186,17 @@ void SimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 int main(int argc, char **argv) {
   // This will be overloaded if a thread_num is provided as argument
   uint64_t thread_num = 8;
+  bool ret;
   
   Argv args{argc, argv};
-  const std::string *value = args.GetValue("thread_num");
-  if(value != nullptr) {
-    thread_num = std::stoul(value->c_str()); 
+  ret = args.GetValueAsUL("thread_num", &thread_num);
+  
+  // Value found but illegal
+  if(ret == false) {
+    dbg_printf("ERROR: Unrecognized thread_num: \"%s\"\n", 
+               args.GetValue("thread_num")->c_str());
+    
+    return 1; 
   }
   
   dbg_printf("*** Using thread_num = %lu\n", thread_num);
