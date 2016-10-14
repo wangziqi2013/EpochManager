@@ -293,19 +293,17 @@ class GlobalWriteEM {
    * to prevent this function using an epoch currently being recycled
    */
   inline EpochNode *JoinEpoch() {
-try_join_again:
-    // We must make sure the epoch we join and the epoch we
-    // return are the same one because the current point
-    // could change in the middle of this function
-    EpochNode *epoch_p = current_epoch_p;
-
-    int64_t prev_count = epoch_p->active_thread_count.fetch_add(1);
-
-    // We know epoch_p is now being cleaned, so need to read the
-    // current epoch again because it must have been moved
-    if(prev_count < 0) {
-      goto try_join_again;
-    }
+    do {
+      // Contention: current_epoch_p might be moved after we
+      // read it, and then it could be under GC
+      // So we should check whether it is latched by GC thread
+      EpochNode *epoch_p = current_epoch_p;
+  
+      // If the value is < 0 then we know the current epoch is being latched
+      // by the GC thread and will be soon removed.
+      // Thus we try reloading the current epoch pointer and try again
+      int64_t prev_count = epoch_p->active_thread_count.fetch_add(1);
+    } while(prev_count < 0);
 
     #ifdef BWTREE_DEBUG
     epoch_join.fetch_add(1);
@@ -353,39 +351,20 @@ try_join_again:
    *
    * The minimum number of epoch we must maintain is 1 which means
    * when current epoch is the head epoch we should stop scanning
-   *
-   * NOTE: There is no race condition in this function since it is
-   * only called by the cleaner thread
    */
   void ClearEpoch() {
     // Keep cleaning until this is the only epoch left
     // *OR* there is no epoch left depending on whether 
     // current_epoch_p == nullptr
     while(head_epoch_p != current_epoch_p) {
-      // Since it could only be acquired and released by worker thread
-      // the value must be >= 0
-      int active_thread_count = head_epoch_p->active_thread_count.load();
-      assert(active_thread_count >= 0);
-
-      // If we have seen an epoch whose count is not zero then all
-      // epochs after that are protected and we stop
-      if(active_thread_count != 0) {
-        break;
-      }
-
-      // If some thread joins the epoch between the previous branch
-      // and the following fetch_sub(), then fetch_sub() returns a positive
-      // number, which is the number of threads that have joined the epoch
-      // since last epoch counter testing.
-
-      if(head_epoch_p->active_thread_count.fetch_sub(MAX_THREAD_COUNT) > 0) {
-        bwt_printf("Some thread sneaks in after we have decided"
-                   " to clean. Return\n");
-
-        // Must add it back to let the next round of cleaning correctly
-        // identify empty epoch
-        head_epoch_p->active_thread_count.fetch_add(MAX_THREAD_COUNT);
-
+      // Latch it using a very large negative number, such that all
+      // threads trying to fetch_add() it will get a negative number
+      // and thus try to reload current epoch pointer
+      bool ret = \
+        head_epoch_p->active_thread_count.compare_exchange_strong(0, INT_MIN);
+        
+      // The head epoch is not 0; could not recollect it
+      if(ret == false) {
         break;
       }
 
@@ -402,34 +381,22 @@ try_join_again:
       for(const GarbageNode *garbage_node_p = head_epoch_p->garbage_list_p.load();
           garbage_node_p != nullptr;
           garbage_node_p = next_garbage_node_p) {
-        FreeEpochDeltaChain(garbage_node_p->node_p);
-
-        // Save the next pointer so that we could
-        // delete current node directly
+        FreeGarbageNode(garbage_node_p->node_p);
         next_garbage_node_p = garbage_node_p->next_p;
 
-        // This invalidates any further reference to its
-        // members (so we saved next pointer above)
         delete garbage_node_p;
-      } // for
+      }
 
-      // First need to save this in order to delete current node
-      // safely
       EpochNode *next_epoch_node_p = head_epoch_p->next_p;
-
       delete head_epoch_p;
 
       #ifdef BWTREE_DEBUG
       epoch_freed++;
       #endif
 
-      // Then advance to the next epoch
-      // It is possible that head_epoch_p becomes nullptr
-      // this happens during destruction, and should not
-      // cause any problem since that case we also set current epoch
-      // pointer to nullptr
+      // This may or may not leads to a nullptr
       head_epoch_p = next_epoch_node_p;
-    } // while(1) through epoch nodes
+    } // whule(current != head)
 
     return;
   }
@@ -442,6 +409,11 @@ try_join_again:
    * its own GC thread using the loop
    */
   void PerformGarbageCollection() {
+    // The order is important - If CreateNewEpoch() is called
+    // before ClearEpoch() then very likely contention will
+    // happen on current_epoch_p, in a sense that:
+    //   1. Worker thread load current_epoch_p
+    //   2.  
     ClearEpoch();
     CreateNewEpoch();
     
