@@ -67,10 +67,22 @@ class GlobalWriteEM {
   // since it is only accessed by epoch manager
   EpochNode *head_epoch_p;
 
-  // This does not need to be atomic because it is only written
-  // by the epoch manager and read by worker threads. But it is
-  // acceptable that allocations are delayed to the next epoch
-  EpochNode *current_epoch_p;
+  // *** NOTE ***
+  // This must be atomic and read/write to this variable should be synchronized
+  // Consider the following case:
+  //   1. CPU 0's epoch manager changes this pointer by creating a new epoch
+  //   2. CPU 0's worker thread enters the new epoch
+  //      CPU 0's worker thread access node N
+  //   3. CPU 1's worker thread has not yet seen the update, enters old epoch
+  //      CPU 1's worker thread unlinks node N
+  //      CPU 1's worker thread has not seen the update yet, and links
+  //        node N into the old epoch's garbage list
+  //   4. CPU 1's worker thread exits, marking old epoch's ref count = 0
+  //   5. Epoch thread frees all garbage nodes in the old epoch
+  //   6. CPU 0's worker thread access node N, but it has been freed
+  //      Ouch!!!!!
+  //
+  std::atomic<EpochNode *> current_epoch_p;
 
   // This flag indicates whether the destructor is running
   // If it is true then GC thread should not clean
@@ -112,7 +124,8 @@ class GlobalWriteEM {
     current_epoch_p->garbage_list_p = nullptr;
     current_epoch_p->next_p = nullptr;
 
-    head_epoch_p = current_epoch_p;
+    // This write is always done by epoch thread
+    head_epoch_p = current_epoch_p.load();
 
     // We allocate and run this later
     thread_p = nullptr;
@@ -196,17 +209,19 @@ class GlobalWriteEM {
   }
 
   /*
-   * CreateNewEpoch() - Create a new epoch node
+   * CreateNewEpoch() - Create a new epoch node and append it to the current
+   *                    tail of linked list of epoch nodes
    *
-   * This functions does not have to consider race conditions
+   * Note that the "append node" oepration does not have to be atomic
+   * since even if the visibility of the new epoch node differs among
+   * different cores, it does not matter since it implies some cores will
+   * still see older epoch and this does not cause premature free of resources
    */
   void CreateNewEpoch() {
-    bwt_printf("Creating new epoch...\n");
-
     EpochNode *epoch_node_p = new EpochNode{};
 
-    epoch_node_p->active_thread_count = 0;
-    epoch_node_p->garbage_list_p = nullptr;
+    epoch_node_p->active_thread_count.store(0);
+    epoch_node_p->garbage_list_p.store(nullptr);
 
     // We always append to the tail of the linked list
     // so this field for new node is always nullptr
@@ -218,7 +233,7 @@ class GlobalWriteEM {
     // And then switch current epoch pointer
     current_epoch_p = epoch_node_p;
 
-    #ifdef BWTREE_DEBUG
+    #ifdef NDEBUG
     epoch_created++;
     #endif
 
@@ -244,7 +259,7 @@ class GlobalWriteEM {
     EpochNode *epoch_p = current_epoch_p;
 
     // These two could be predetermined
-    GarbageNode *garbage_node_p = new GarbageNode;
+    GarbageNode *garbage_node_p = new GarbageNode{};
     garbage_node_p->node_p = node_p;
 
     garbage_node_p->next_p = epoch_p->garbage_list_p.load();
@@ -260,8 +275,6 @@ class GlobalWriteEM {
       // If CAS succeeds then just return
       if(ret == true) {
         break;
-      } else {
-        bwt_printf("Add garbage node CAS failed. Retry\n");
       }
     } // while 1
 
