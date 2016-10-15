@@ -147,19 +147,19 @@ void GetThreadAffinityBenchmark(uint64_t thread_num) {
  *                       given base
  */
 uint64_t GetRandomWorkload(uint64_t base, uint64_t dev, uint64_t seed) {
-  const uint64_t r = base;
-  const uint64_t dev = base >> 2;
+  uint64_t r = base;
   
   // If workload is large enough then make it random
   // Otherwise just use the given workload
-  if(workload != 0 && dev != 0) {
-    SimpleInt64Random<0, dev> hasher{};
+  if(base != 0 && dev != 0) {
+    // Use default parameter (0 - UINT64_T MAX)
+    SimpleInt64Random<> hasher{};
     
     const uint64_t sign = hasher(seed, seed + 1) % 2;
     if(sign == 0) {
-      r = base + hasher(seed, seed);
+      r = base + hasher(seed, seed) % dev;
     } else {
-      r = base - hasher(seed, seed);
+      r = base - hasher(seed, seed) % dev;
     }
   }
   
@@ -191,20 +191,8 @@ void LEMSimpleBenchmark(uint64_t thread_num,
                 // number of core
                 PinToCore(core_id);
                 
-                const uint64_t random_workload = workload;
-                const uint64_t dev = workload >> 2;
-                SimpleInt64Random hasher{};
-                
-                // If workload is large enough then make it random
-                // Otherwise just use the given workload
-                if(workload != 0 && dev != 0) {
-                  const uint64_t sign = hasher(id, id + 1) % 2;
-                  if(sign == 0) {
-                    random_workload = workload + hasher(id, id) % dev;
-                  } else {
-                    random_workload = workload - hasher(id, id) % dev;
-                  }
-                }
+                const uint64_t random_workload = \
+                  GetRandomWorkload(workload, workload >> 2, id); 
                 
                 std::vector<uint64_t> v{};
                 v.reserve(1);
@@ -263,27 +251,15 @@ void GEMSimpleBenchmark(uint64_t thread_num,
 
   auto func = [em, op_num, workload](uint64_t id) {
                 // random is between (base [+/-] 1/4 base)
-                const uint64_t random_workload = workload;
-                const uint64_t dev = workload >> 2;
-                SimpleInt64Random hasher{0, dev};
-                
-                // If workload is large enough then make it random
-                // Otherwise just use the given workload
-                if(workload != 0 && dev != 0) {
-                  const uint64_t sign = hasher(id, id + 1) % 2;
-                  if(sign == 0) {
-                    random_workload = workload + hasher(id, id);
-                  } else {
-                    random_workload = workload - hasher(id, id);
-                  }
-                }
+                const uint64_t random_workload = \
+                  GetRandomWorkload(workload, workload >> 2, id); 
                 
                 std::vector<uint64_t> v{};
                 v.reserve(1);
                 
                 // And then announce entry on its own processor
                 for(uint64_t i = 0;i < op_num;i++) { 
-                  void *epoch_node_p = em->JoinEpoch(core_id);
+                  void *epoch_node_p = em->JoinEpoch();
                   
                   // Actual workload is protected by epoch manager
                   for(uint64_t j = 0;j < random_workload;j++) {
