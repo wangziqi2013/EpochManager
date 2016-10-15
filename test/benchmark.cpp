@@ -247,12 +247,25 @@ int main(int argc, char **argv) {
   
   dbg_printf("*** Using thread_num = %lu\n", thread_num);
   
-  //if(argc == 1 || )
-  GetThreadAffinityBenchmark(thread_num);
-  IntHasherRandBenchmark(100000000, 10);
-  RandomNumberBenchmark(thread_num, 100000000);
-  LEMSimpleBenchmark(thread_num, 1024 * 1024 * 30);
-  GEMSimpleBenchmark(thread_num, 1024 * 1024 * 10);
+  if(argc == 1 || args.Exists("thread_affinity")) {
+    GetThreadAffinityBenchmark(thread_num);
+  }
+  
+  if(argc == 1 || args.Exists("int_hash")) {
+    IntHasherRandBenchmark(100000000, 10);
+  }
+  
+  if(argc == 1 || args.Exists("random_number")) {
+    RandomNumberBenchmark(thread_num, 100000000);
+  }
+  
+  if(argc == 1 || args.Exists("lem_simple")) {
+    LEMSimpleBenchmark(thread_num, 1024 * 1024 * 30);
+  }
+  
+  if(argc == 1 || args.Exists("gem_simple")) {
+    GEMSimpleBenchmark(thread_num, 1024 * 1024 * 10);
+  }
   
   return 0;
 }
