@@ -163,6 +163,9 @@ void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
                 }
               };
 
+  // Need to start GC thread to periodically increase global epoch
+  em->StartGCThread();
+
   // Let timer start and then start threads
   Timer t{true};
   StartThreads(thread_num, func);
@@ -205,6 +208,8 @@ void GEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
                   em->LeaveEpoch(epoch_node_p);
                 }
               };
+
+  em->StartGCThread();
 
   // Let timer start and then start threads
   Timer t{true};
