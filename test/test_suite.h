@@ -202,7 +202,7 @@ class SimpleInt64Random {
  *      optionally with '=' followed by a string
  *
  * Both 1 and 2 will be stored in a std::map for key and value retrival
- * and option key is string, option value is empty if does not exist,
+ * and option key is string, option value is empty string if does not exist,
  * or the string value if there is a value
  *
  *   3. Argument, i.e. without "--" and "-". 
@@ -276,6 +276,9 @@ class Argv {
           value++;
         }
         
+        // 1. If "key=" then key is key and value is empty string
+        // 2. If "key" then key is key and value is empty string
+        // 3. If "key=value" then key is key and value is value
         kv_map[std::string{key}] = std::string{value};
       } else {
         arg_list.emplace_back(s); 
@@ -297,6 +300,17 @@ class Argv {
     }
     
     return;
+  }
+  
+  /*
+   * Exists() - Whetehr a key exists
+   *
+   * This could either be used for switches, i.e. --key or -key
+   * or with key-value pairs, i.e. --key=value or -key=value which just
+   * ignores the value
+   */
+  bool Exists(const std::string &key) {
+    return GetValue(key) != nullptr;
   }
   
   /*
