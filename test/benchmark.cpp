@@ -194,15 +194,17 @@ void LEMSimpleBenchmark(uint64_t thread_num,
                 const uint64_t random_workload = \
                   GetRandomWorkload(workload, workload >> 2, id); 
                 
+                //printf("**%lu**\n", random_workload);
+                
                 std::vector<uint64_t> v{};
-                v.reserve(1);
+                v.reserve(random_workload);
                 
                 // And then announce entry on its own processor
                 for(uint64_t i = 0;i < op_num;i++) { 
                   em->AnnounceEnter(core_id);
                   
                   for(uint64_t j = 0;j < random_workload;j++) {
-                    v[0] = j; 
+                    v[j] = j; 
                   }
                 }
                 
@@ -255,7 +257,7 @@ void GEMSimpleBenchmark(uint64_t thread_num,
                   GetRandomWorkload(workload, workload >> 2, id); 
                 
                 std::vector<uint64_t> v{};
-                v.reserve(1);
+                v.reserve(random_workload);
                 
                 // And then announce entry on its own processor
                 for(uint64_t i = 0;i < op_num;i++) { 
@@ -263,7 +265,7 @@ void GEMSimpleBenchmark(uint64_t thread_num,
                   
                   // Actual workload is protected by epoch manager
                   for(uint64_t j = 0;j < random_workload;j++) {
-                    v[0] = j; 
+                    v[j] = j; 
                   }
                   
                   em->LeaveEpoch(epoch_node_p);
