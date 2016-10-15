@@ -18,7 +18,7 @@ using namespace index;
 // Number of cores we test EM on (this does not have to match the number
 // of cores on the testing machine since we only test correctness but
 // not performance)
-static const uint64_t CoreNum = 40;
+uint64_t CoreNum;
 
 // Declear stack and its node type here
 using StackType = AtomicStack<uint64_t>;
@@ -158,6 +158,9 @@ void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
                 uint64_t core_id = id % CoreNum;
                 
                 // This avoids scheduling problem
+                // Without this function the performance will be very
+                // unstable especially when # of threads does not match
+                // number of core
                 PinToCore(core_id);
                 
                 // And then announce entry on its own processor
@@ -242,8 +245,18 @@ void GEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
 
 
 int main(int argc, char **argv) {
+  // This returns the number of logical CPUs
+  CoreNum = GetCoreNum();
+  dbg_printf("# of cores (default thread_num) on the platform = %lu\n", 
+             CoreNum);
+  if(CoreNum == 0) {
+    dbg_printf("    ...which is not supported\n");
+    
+    exit(1);
+  }
+  
   // This will be overloaded if a thread_num is provided as argument
-  uint64_t thread_num = 8;
+  uint64_t thread_num = CoreNum;
   bool ret;
   
   Argv args{argc, argv};
@@ -257,7 +270,7 @@ int main(int argc, char **argv) {
     return 1; 
   }
   
-  dbg_printf("*** Using thread_num = %lu\n", thread_num);
+  dbg_printf("Using thread_num = %lu\n", thread_num);
   
   if(argc == 1 || args.Exists("thread_affinity")) {
     GetThreadAffinityBenchmark(thread_num);
