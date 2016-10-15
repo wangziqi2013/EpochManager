@@ -149,10 +149,12 @@ void GetThreadAffinityBenchmark(uint64_t thread_num) {
 void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
   PrintTestName("LEMSimpleBenchmark");
   
-  // This instance must be created by the factory
-  LEM *em = new LEM{CoreNum};
+  
+  // Note that we use the number of counters equal to the number of threads
+  // rather than number of cores, i.e. one core could have multiple counters
+  LEM *em = new LEM{thread_num};
 
-  auto func = [em, thread_num, op_num](uint64_t id) {
+  auto func = [em, op_num](uint64_t id) {
                 // This is the core ID this thread is logically pinned to
                 // physically we do not make any constraint here
                 uint64_t core_id = id % CoreNum;
@@ -243,11 +245,32 @@ void GEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
   return;
 }
 
+/*
+ * GetValueOrThrow() - Get an unsigned long typed value from args, or throw 
+ *                     exception if the format for key-value is not correct
+ *
+ * This function throws integer constant 0 on error 
+ */
+void GetValueAsULOrThrow(Argv &args, 
+                         const std::string &key,
+                         unsigned long *value_p) {
+  bool ret = args.GetValueAsUL(key, value_p);
+  
+  if(ret == false) {
+    dbg_printf("ERROR: Unrecognized value for key %s: \"%s\"\n",
+               key.c_str(), 
+               args.GetValue("thread_num")->c_str());
+               
+    throw 0;
+  }
+  
+  return;
+}
 
 int main(int argc, char **argv) {
   // This returns the number of logical CPUs
   CoreNum = GetCoreNum();
-  dbg_printf("# of cores (default thread_num) on the platform = %lu\n", 
+  dbg_printf("* # of cores (default thread_num) on the platform = %lu\n", 
              CoreNum);
   if(CoreNum == 0) {
     dbg_printf("    ...which is not supported\n");
@@ -257,20 +280,17 @@ int main(int argc, char **argv) {
   
   // This will be overloaded if a thread_num is provided as argument
   uint64_t thread_num = CoreNum;
-  bool ret;
+  // By default no workload is done
+  uint64_t workload = 0;
   
   Argv args{argc, argv};
-  ret = args.GetValueAsUL("thread_num", &thread_num);
   
-  // Value found but illegal
-  if(ret == false) {
-    dbg_printf("ERROR: Unrecognized thread_num: \"%s\"\n", 
-               args.GetValue("thread_num")->c_str());
-    
-    return 1; 
-  }
+  GetValueAsULOrThrow(args, "thread_num", &thread_num);
+  GetValueAsULOrThrow(args, "workload", &workload);
   
-  dbg_printf("Using thread_num = %lu\n", thread_num);
+  dbg_printf("* thread_num = %lu\n", thread_num);
+  dbg_printf("* workload = %lu\n", workload);
+  dbg_printf("* CoreNum = %lu\n", CoreNum);
   
   if(argc == 1 || args.Exists("thread_affinity")) {
     GetThreadAffinityBenchmark(thread_num);
