@@ -157,6 +157,9 @@ void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
                 // physically we do not make any constraint here
                 uint64_t core_id = id % CoreNum;
                 
+                // This avoids scheduling problem
+                PinToCore(core_id);
+                
                 // And then announce entry on its own processor
                 for(uint64_t i = 0;i < op_num;i++) { 
                   em->AnnounceEnter(core_id);
