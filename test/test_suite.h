@@ -14,6 +14,7 @@ void PrintTestName(const char *name);
 void SleepFor(uint64_t sleep_ms); 
 int GetThreadAffinity();
 void PinToCore(size_t core_id);
+uint64_t GetCoreNum();
  
 // Template function to launch threads
 // This does not define anything but to specify a template so it is

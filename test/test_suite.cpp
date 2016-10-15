@@ -1,4 +1,13 @@
 
+/*
+ * test_suite.cpp - Test helper function
+ *
+ * This file is always compiled under debug mode to simplify error handling 
+ * and some other tasks. So do not put performance critical function here
+ * and instead put those function that will only be run by a limited time,
+ * i.e. set up and tear down functions
+ */
+
 #include "test_suite.h"
 
 /*
@@ -50,4 +59,14 @@ void PinToCore(size_t core_id) {
   (void)ret;
 
   return;
+}
+
+/*
+ * GetCoreNum() - Returns the number of logical cores the machine has
+ *
+ * If hyperthreading is available on the target machine then this function 
+ * returns twice as the number of real physcial cores
+ */
+uint64_t GetCoreNum() {
+  return std::thread::hardware_concurrency(); 
 }
