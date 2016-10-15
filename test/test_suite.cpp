@@ -47,7 +47,5 @@ void PinToCore(size_t core_id) {
 
   int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set);
 
-  printf("pthread_setaffinity_np() returns %d\n", ret);
-
   return;
 }
