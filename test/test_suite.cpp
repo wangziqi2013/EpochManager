@@ -46,6 +46,8 @@ void PinToCore(size_t core_id) {
   CPU_SET(core_id, &cpu_set);
 
   int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set);
+  assert(ret == 0);
+  (void)ret;
 
   return;
 }
