@@ -146,7 +146,9 @@ void GetThreadAffinityBenchmark(uint64_t thread_num) {
  * LEMSimpleBenchmark() - Benchmark how LocalWriteEM works without workload - 
  *                        just announce entry & exit and it's all       
  */
-void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
+void LEMSimpleBenchmark(uint64_t thread_num, 
+                        uint64_t op_num,
+                        uint64_t workload) {
   PrintTestName("LEMSimpleBenchmark");
   
   
@@ -154,7 +156,7 @@ void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
   // rather than number of cores, i.e. one core could have multiple counters
   LEM *em = new LEM{thread_num};
 
-  auto func = [em, op_num](uint64_t id) {
+  auto func = [em, op_num, workload](uint64_t id) {
                 // This is the core ID this thread is logically pinned to
                 // physically we do not make any constraint here
                 uint64_t core_id = id % CoreNum;
@@ -165,9 +167,31 @@ void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
                 // number of core
                 PinToCore(core_id);
                 
+                const uint64_t random_workload = workload;
+                const uint64_t dev = workload >> 2;
+                SimpleInt64Random hasher{};
+                
+                // If workload is large enough then make it random
+                // Otherwise just use the given workload
+                if(workload != 0 && dev != 0) {
+                  const uint64_t sign = hasher(id, id + 1) % 2;
+                  if(sign == 0) {
+                    random_workload = workload + hasher(id, id) % dev;
+                  } else {
+                    random_workload = workload - hasher(id, id) % dev;
+                  }
+                }
+                
+                std::vector<uint64_t> v{};
+                v.reserve(1);
+                
                 // And then announce entry on its own processor
                 for(uint64_t i = 0;i < op_num;i++) { 
                   em->AnnounceEnter(core_id);
+                  
+                  for(uint64_t j = 0;j < random_workload;j++) {
+                    v[0] = j; 
+                  }
                 }
               };
 
@@ -203,7 +227,9 @@ void LEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
  * increase and decrease the counter whenever a thread enters and leaves the 
  * epoch, which is two times the overhead a LocalWriteEM would have
  */
-void GEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
+void GEMSimpleBenchmark(uint64_t thread_num, 
+                        uint64_t op_num, 
+                        uint64_t workload) {
   PrintTestName("GEMSimpleBenchmark");
   
   // This instance must be created by the factory
