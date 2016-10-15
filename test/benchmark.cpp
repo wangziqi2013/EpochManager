@@ -143,6 +143,30 @@ void GetThreadAffinityBenchmark(uint64_t thread_num) {
 }
 
 /*
+ * GetRandomWorkload() - Get a random number with uniform deviation from the 
+ *                       given base
+ */
+uint64_t GetRandomWorkload(uint64_t base, uint64_t dev, uint64_t seed) {
+  const uint64_t r = base;
+  const uint64_t dev = base >> 2;
+  
+  // If workload is large enough then make it random
+  // Otherwise just use the given workload
+  if(workload != 0 && dev != 0) {
+    SimpleInt64Random<0, dev> hasher{};
+    
+    const uint64_t sign = hasher(seed, seed + 1) % 2;
+    if(sign == 0) {
+      r = base + hasher(seed, seed);
+    } else {
+      r = base - hasher(seed, seed);
+    }
+  }
+  
+  return r;
+}
+
+/*
  * LEMSimpleBenchmark() - Benchmark how LocalWriteEM works without workload - 
  *                        just announce entry & exit and it's all       
  */
@@ -237,19 +261,20 @@ void GEMSimpleBenchmark(uint64_t thread_num,
   // This instance must be created by the factory
   GEM *em = new GEM{};
 
-  auto func = [em, op_num](uint64_t id) {
+  auto func = [em, op_num, workload](uint64_t id) {
+                // random is between (base [+/-] 1/4 base)
                 const uint64_t random_workload = workload;
                 const uint64_t dev = workload >> 2;
-                SimpleInt64Random hasher{};
+                SimpleInt64Random hasher{0, dev};
                 
                 // If workload is large enough then make it random
                 // Otherwise just use the given workload
                 if(workload != 0 && dev != 0) {
                   const uint64_t sign = hasher(id, id + 1) % 2;
                   if(sign == 0) {
-                    random_workload = workload + hasher(id, id) % dev;
+                    random_workload = workload + hasher(id, id);
                   } else {
-                    random_workload = workload - hasher(id, id) % dev;
+                    random_workload = workload - hasher(id, id);
                   }
                 }
                 
