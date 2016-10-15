@@ -162,7 +162,7 @@ class Timer {
  * Please note that here upper is not inclusive (i.e. it will not appear as the 
  * random number)
  */
-template <uint64_t lower, uint64_t upper>
+template <uint64_t lower = 0UL, uint64_t upper = UINT64_MAX>
 class SimpleInt64Random {
  public:
    
