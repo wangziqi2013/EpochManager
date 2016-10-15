@@ -101,7 +101,7 @@ class GlobalWriteEM {
   size_t epoch_created;
   size_t epoch_freed;
 
-  #ifdef NDEBUG
+  #ifndef NDEBUG
   // Statistical maintained for epoches
   
   // Number of nodes we have freed
@@ -138,7 +138,7 @@ class GlobalWriteEM {
     epoch_created = 1UL;
     epoch_freed = 0UL;
 
-    #ifdef NDEBUG
+    #ifndef NDEBUG
     // Initialize atomic counter to record how many
     // freed has been called inside epoch manager
     
@@ -178,7 +178,9 @@ class GlobalWriteEM {
       // Free memory
       delete thread_p;
       
+      #ifndef NDEBUG
       dbg_printf("Internal GC Thread stops\n");
+      #endif
     }
 
     // So that in the following function the comparison
@@ -193,7 +195,7 @@ class GlobalWriteEM {
     // and we called ClearEpoch() just now, this should work
     assert(head_epoch_p == nullptr);
 
-    #ifdef NDEBUG
+    #ifndef NDEBUG
     dbg_printf("Stat: Freed %lu nodes by epoch manager\n",
                freed_count);
 
@@ -309,7 +311,7 @@ class GlobalWriteEM {
       prev_count = epoch_p->active_thread_count.fetch_add(1);
     } while(prev_count < 0);
 
-    #ifdef BWTREE_DEBUG
+    #ifndef NDEBUG
     epoch_join.fetch_add(1);
     #endif
 
@@ -327,7 +329,7 @@ class GlobalWriteEM {
     // is being cleaned
     reinterpret_cast<EpochNode *>(epoch_p)->active_thread_count.fetch_sub(1);
 
-    #ifdef BWTREE_DEBUG
+    #ifndef NDEBUG
     epoch_leave.fetch_add(1);
     #endif
 
@@ -343,7 +345,7 @@ class GlobalWriteEM {
   void FreeGarbageType(GarbageType *node_p) {
     delete node_p;
     
-    #ifdef NDEBUG
+    #ifndef NDEBUG
     freed_count++;  
     #endif 
 
@@ -491,7 +493,7 @@ class GlobalWriteEM {
    * GetEpochFreed() - Return the number of epoches freed by the EM
    */
   size_t GetEpochFreed() const {
-    return epoch_freed(); 
+    return epoch_freed; 
   }
 
 }; // Epoch manager

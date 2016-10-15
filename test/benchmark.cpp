@@ -222,7 +222,11 @@ void GEMSimpleBenchmark(uint64_t thread_num, uint64_t op_num) {
              thread_num,
              op_num,
              duration);
-             
+  
+  dbg_printf("    Epoch created = %lu; Epoch freed = %lu\n",
+             em->GetEpochCreated(),
+             em->GetEpochFreed());
+  
   dbg_printf("    Throughput = %f M op/sec\n", 
              static_cast<double>(thread_num * op_num) / duration / (1024.0 * 1024.0));
 
