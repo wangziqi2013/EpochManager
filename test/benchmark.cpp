@@ -193,6 +193,8 @@ void LEMSimpleBenchmark(uint64_t thread_num,
                     v[0] = j; 
                   }
                 }
+                
+                return;
               };
 
   // Need to start GC thread to periodically increase global epoch
@@ -236,11 +238,37 @@ void GEMSimpleBenchmark(uint64_t thread_num,
   GEM *em = new GEM{};
 
   auto func = [em, op_num](uint64_t id) {
+                const uint64_t random_workload = workload;
+                const uint64_t dev = workload >> 2;
+                SimpleInt64Random hasher{};
+                
+                // If workload is large enough then make it random
+                // Otherwise just use the given workload
+                if(workload != 0 && dev != 0) {
+                  const uint64_t sign = hasher(id, id + 1) % 2;
+                  if(sign == 0) {
+                    random_workload = workload + hasher(id, id) % dev;
+                  } else {
+                    random_workload = workload - hasher(id, id) % dev;
+                  }
+                }
+                
+                std::vector<uint64_t> v{};
+                v.reserve(1);
+                
                 // And then announce entry on its own processor
-                for(uint64_t i = 0;i < op_num;i++) {
-                  auto epoch_node_p = em->JoinEpoch();
+                for(uint64_t i = 0;i < op_num;i++) { 
+                  void *epoch_node_p = em->JoinEpoch(core_id);
+                  
+                  // Actual workload is protected by epoch manager
+                  for(uint64_t j = 0;j < random_workload;j++) {
+                    v[0] = j; 
+                  }
+                  
                   em->LeaveEpoch(epoch_node_p);
                 }
+                
+                return;
               };
 
   em->StartGCThread();
@@ -331,11 +359,11 @@ int main(int argc, char **argv) {
   }
   
   if(argc == 1 || args.Exists("lem_simple")) {
-    LEMSimpleBenchmark(thread_num, 1024 * 1024 * 30);
+    LEMSimpleBenchmark(thread_num, 1024 * 1024 * 30, workload);
   }
   
   if(argc == 1 || args.Exists("gem_simple")) {
-    GEMSimpleBenchmark(thread_num, 1024 * 1024 * 10);
+    GEMSimpleBenchmark(thread_num, 1024 * 1024 * 10, workload);
   }
   
   return 0;
