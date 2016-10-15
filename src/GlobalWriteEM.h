@@ -72,7 +72,7 @@ class GlobalWriteEM {
   // This must be atomic and read/write to this variable should be synchronized
   // Consider the following case:
   //   1. CPU 0's epoch manager changes this pointer by creating a new epoch
-  //       * CONTEXT SWITCH * -> MEMORY BARRIER HERE?
+  //       * CONTEXT SWITCH * -> MEMORY BARRIER HERE??????
   //   2. CPU 0's worker thread enters the new epoch
   //      CPU 0's worker thread access node N
   //   3. CPU 1's worker thread has not yet seen the update, enters old epoch
@@ -96,18 +96,17 @@ class GlobalWriteEM {
   // Otherwise it points to a thread created by EpochManager internally
   std::thread *thread_p;
 
+  // These two do not have to be hidden from benchmark since they are modified
+  // in relative long time intervals
+  size_t epoch_created;
+  size_t epoch_freed;
+
   #ifdef NDEBUG
   // Statistical maintained for epoches
   
   // Number of nodes we have freed
   size_t freed_count;
-
-  // These two are used for debugging
-  // They do not have to be atomic since these two are only accessed by
-  // the epoch thread, so R/W atomicity could be guaranteed
-  size_t epoch_created;
-  size_t epoch_freed;
-
+  
   std::atomic<size_t> epoch_join;
   std::atomic<size_t> epoch_leave;
   #endif
@@ -135,15 +134,15 @@ class GlobalWriteEM {
     // This is used to notify the cleaner thread that it has ended
     exited_flag.store(false);
 
+    // It is not 0UL since we create an initial epoch on initialization
+    epoch_created = 1UL;
+    epoch_freed = 0UL;
+
     #ifdef NDEBUG
     // Initialize atomic counter to record how many
     // freed has been called inside epoch manager
     
     freed_count = 0UL;
-
-    // It is not 0UL since we create an initial epoch on initialization
-    epoch_created = 1UL;
-    epoch_freed = 0UL;
 
     epoch_join.store(0);
     epoch_leave.store(0);
@@ -168,7 +167,7 @@ class GlobalWriteEM {
     // check this flag everytime it does cleaning since otherwise
     // the un-thread-safe function ClearEpoch() would be ran
     // by more than 1 threads
-    exited_flag.store(true);
+    SignalExit();
 
     // If thread pointer is nullptr then we know the GC thread
     // is not started. In this case do not wait for the thread, and just
@@ -235,9 +234,7 @@ class GlobalWriteEM {
     // And then switch current epoch pointer
     current_epoch_p = epoch_node_p;
 
-    #ifdef NDEBUG
     epoch_created++;
-    #endif
 
     return;
   }
@@ -399,10 +396,7 @@ class GlobalWriteEM {
 
       EpochNode *next_epoch_node_p = head_epoch_p->next_p;
       delete head_epoch_p;
-
-      #ifdef BWTREE_DEBUG
       epoch_freed++;
-      #endif
 
       // This may or may not leads to a nullptr
       head_epoch_p = next_epoch_node_p;
@@ -448,12 +442,8 @@ class GlobalWriteEM {
    * This function exits when exit flag is set to true
    */
   void ThreadFunc() {
-    // While the parent is still running
-    // We do not worry about race condition here
-    // since even if we missed one we could always
-    // hit the correct value on next try
-    while(exited_flag.load() == false) {
-      //printf("Start new epoch cycle\n");
+    // In general this does not require a 
+    while(HasExited() == false) {
       PerformGarbageCollection();
 
       // Sleep for 50 ms
@@ -465,15 +455,43 @@ class GlobalWriteEM {
   }
 
   /*
-   * StartThread() - Start cleaner thread for garbage collection
+   * StartGCThread() - Start cleaner thread for garbage collection
    *
-   * NOTE: This is not called in the constructor, and needs to be
-   * called manually
+   * Calling this function is totally optional, and if it is not called
+   * an external thread should be scheduled to be run on the clean routine
    */
-  void StartThread() {
+  void StartGCThread() {
     thread_p = new std::thread{[this](){this->ThreadFunc();}};
 
     return;
+  }
+  
+  /*
+   * SignalExit() - Stop GC thread by writing to the boolean atomic variable
+   */
+  inline void SignalExit() {
+    exited_flag.store(true); 
+  }
+  
+  /*
+   * HasExited() - Whether the stop signal has been sent via exited_flag
+   */
+  inline bool HasExited() const {
+    return exited_flag.load();
+  }
+  
+  /*
+   * GetEpochCreated() - Return the number of epoches created by the EM
+   */
+  size_t GetEpochCreated() const {
+    return epoch_created; 
+  }
+  
+  /*
+   * GetEpochFreed() - Return the number of epoches freed by the EM
+   */
+  size_t GetEpochFreed() const {
+    return epoch_freed(); 
   }
 
 }; // Epoch manager
