@@ -41,7 +41,9 @@ class VarLenPool {
    */
   class Mem {
    public:
-    ChunkHeader *header_p; 
+    ChunkHeader *header_p;
+    // This points to the next available byte
+    char data[0]; 
   };
   
   /*
@@ -60,8 +62,11 @@ class VarLenPool {
     // Only valid if reference count == 0 and this chunk is not the most
     // recent in the queue
     uint64_t delete_epoch;
+    
     // Actual data being allocated
     char *data;
+    // The first byte after data region
+    char *end_data;
     
     /*
      * Allocate() - Allocate a memory of size sz from this chunk
@@ -72,18 +77,37 @@ class VarLenPool {
      */
     void *Allocate(size_t sz) {
       ChunkHeader expected_header = header.load();
-      // We will update this and CAS this into the chunk header
-      ChunkHeader new_header{expected_header.ref_count + 1,
-                             expected_header.offset + sz + 8};
-                             
-      bool ret = \
-        chunk_header.compare_exchange_strong(expetced_header, new_header);
+      
+      while(1) {
+        // This is the base address for next allocation
+        // This could not be larger than the end address + 1 of the
+        // current chunk
+        char *next_base = expected_header.offset + sz + 8;
         
-      if(ret == true) {
-         
-      }
+        if(next_base > end_data) {
+          return nullptr; 
+        }
+        
+        // We will update this and CAS this into the chunk header
+        ChunkHeader new_header{expected_header.ref_count + 1,
+                               expected_header.offset + sz + 8};
+        
+        // If success this will exchange into expected_header                     
+        bool ret = \
+          header.compare_exchange_strong(expetced_header, new_header);
+        
+        // If the allocation is successful just return the address
+        if(ret == true) {
+          Mem *mem_p = reinterpret_cast<Mem *>(expected_header.offset);
+          // Set the header
+          mem_p->header_p = &header;
+          
+          return mem_p->data;
+        }
+      } // while(1)
       
-      
+      assert(false);
+      return nullptr;
     }
   };
   
