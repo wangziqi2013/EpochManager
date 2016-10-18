@@ -54,11 +54,11 @@ void VarLenPoolThreadTest(int thread_num, int iter) {
   
   VarLenPool vlp{64};
   
-  auto f1 = [iter, 
-             thread_num, 
-             &all_finished, 
-             &finished_count, 
-             &vlp](uint64_t id) {
+  auto f = [iter, 
+            thread_num, 
+            &all_finished, 
+            &finished_count, 
+            &vlp](uint64_t id) {
     void *p_list[iter];
     
     for(int i = 0;i < iter;i++) {
@@ -73,7 +73,7 @@ void VarLenPoolThreadTest(int thread_num, int iter) {
     }
     
     int t = finished_count.fetch_add(1);
-    if(t == thread_num) {
+    if(t == (thread_num - 1)) {
       dbg_printf("All threads finished... proceed to validate\n");
       
       // This will let all threads proceed including this thread
@@ -103,7 +103,7 @@ void VarLenPoolThreadTest(int thread_num, int iter) {
 
 int main() {
   VarLenPoolBasicTest();
-  VarLenPoolThreadTest();
+  VarLenPoolThreadTest(10, 100);
   
   return 0;
 }
