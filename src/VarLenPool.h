@@ -248,6 +248,21 @@ class VarLenPool {
     
     return;
   }
+  
+  /*
+   * Constructor
+   */
+  ValLenPool(size_t p_chunk_size) :
+    chunk_size{p_chunk_size} {
+    // Allocate a chunk of standard size
+    scanning_head_p = new Chunk{chunk_size};
+    assert(scanning_head_p != nullptr);
+    
+    // This is the pointer to do CAS
+    appending_tail_p.store(scanning_head_p);  
+      
+    return;
+  }
 
  private:  
   // This is the size of each chunk if the requested allocation size is
