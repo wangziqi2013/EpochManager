@@ -20,7 +20,7 @@ void VarLenPoolBasicTest() {
   
   // Chunk size = 64
   VarLenPool vlp{64};
-  for(int i = 1;i <= 10;i++) {
+  for(int i = 1;i <= iter;i++) {
     p_list[i - 1] = vlp.Allocate(i);
     memset(p_list[i - 1], i, i);
     
@@ -28,7 +28,7 @@ void VarLenPoolBasicTest() {
   }
   
   // Verify for correctness
-  for(int i = 1;i <= 10;i++) {
+  for(int i = 1;i <= iter;i++) {
     char *p = reinterpret_cast<char *>(p_list[i - 1]);
     for(int j = 0;j < i;j++) {
       assert(p[j] == static_cast<char>(i));
@@ -38,6 +38,13 @@ void VarLenPoolBasicTest() {
   }
   
   return; 
+}
+
+/*
+ * VarLenPoolThreadTest() - Multithreaded test of VarLenPool
+ */
+void VarLenPoolThreadTest(int thread_num, int iter) {
+   
 }
 
 
