@@ -10,10 +10,6 @@
  */
 class VarLenPool {
  private:
-   // This is the size of each chunk if the requested allocation size is
-   // less than this
-   uint64_t chunk_size;
-   
   /*
    * class ChunkHeader - The header of a chunk being accessed and CAS-ed
    *                     by multiple threads
@@ -144,6 +140,11 @@ class VarLenPool {
    * This function allocates a chunk of size at least sz + 8 (one extra
    * pointer for the extra backward reference), but if sz is lower than a
    * threshold it falls back to malloc()
+   *
+   * If CAS fails to append a Chunk object to the end of the delta chain then
+   * return nullptr, and the caller thread should try to retry reloading the
+   * appending head chunk pointer and then retry allocation. Otherwise
+   * the newly allocated chunk pointer is returned as an indication of success
    */
   Chunk *AllocateChunk(size_t sz) {
     if(sz > chunk_size) {
@@ -153,7 +154,33 @@ class VarLenPool {
       // than the chunk size
       sz = chunk_size; 
     }
+    
+    // Allocate a new chunk object
+    Chunk *chunk_p = new Chunk{sz};
+    assert(chunk_p != nullptr);
+    
+    // CAS. If it fails then some thread has already appended a new chunk
+    // so instead we just retry
+    bool ret = \
+      appending_tail_p->next_p->compare_exchange_strong(nullptr, chunk_p);
+    if(ret == false) {
+      delete chunk_p;
+      
+      return nullptr;
+    } 
+    
+    return chunk_p;
   }
+
+ private:  
+  // This is the size of each chunk if the requested allocation size is
+  // less than this
+  uint64_t chunk_size;
+  
+  // This is the tail we append chunk to
+  Chunk *appending_tail_p;
+  // This is the head we start scanning
+  Chunk *scanning_head_p;
 };
 
 #endif
