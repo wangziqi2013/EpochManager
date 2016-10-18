@@ -187,12 +187,15 @@ class VarLenPool {
   void *Allocate(size_t sz) {
     // Promote it to the nearest 8 byte boundary
     sz = (sz + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+    assert((sz % ALIGNMENT == 0));
     
     Chunk *chunk_p = appending_tail_p->load(); 
     while(1) {
       void *p = chunk_p->Allocate(sz);
       if(p == nullptr) {
         chunk_p = AllocateChunk(sz);
+        // If allocating new chunk failed - some thread must have
+        // already done that, so we just retry
         if(chunk_p == nullptr) {
           Chunk *chunk_p = appending_tail_p->load();  
         }
@@ -205,6 +208,29 @@ class VarLenPool {
     
     assert(false);
     return nullptr;
+  }
+  
+  /*
+   * Free() - Frees a chunk of memory previously allocated
+   *
+   * This function does lazy free - it could not directly reclaim memory
+   * but instead it decreases the reference count of the chunk this pointer
+   * lies in, and let the GC thread to compress unused chunks
+   */
+  void Free(void *p) {
+    // Go to the actual starting address of the allocated memory piece
+    Mem *mem_p = reinterpret_cast<Mem *>(p) - 1;
+    // Load the chunk header field at the header of the chunk
+    ChunkHeader header = mem_p->header_p->load();
+    
+    // This must succeed - either the chunk becomes full and some thread
+    // creates a new chunk, st. no thread could modify the header causing
+    // CAS to fail, or it succeeds
+    while(1) {
+      mem_p->header_p->compare_exchange_strong(header, 
+                                               {header.ref_count - 1, 
+                                                header.offset});
+    }
   }
 
  private:  
