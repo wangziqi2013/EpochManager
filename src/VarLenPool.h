@@ -4,6 +4,8 @@
 #ifndef _VAR_LEN_POOL_H
 #define _VAR_LEN_POOL_H
 
+#include "common.h"
+
 /*
  * class VarLenPool - A memory allocator that groups smaller allocations
  *                    
@@ -30,6 +32,16 @@ class VarLenPool {
       ref_count{p_ref_count},
       offset{p_offset}
     {}
+    
+    /*
+     * Constructor
+     */
+    ChunkHeader() {
+      ref_count = 0;
+      offset = 0;
+      
+      return;
+    }
   };
   
   class Chunk;
@@ -72,19 +84,14 @@ class VarLenPool {
     /*
      * Constructor
      */
-    Chunk(size_t sz) {
+    Chunk(size_t sz) :
+      header{ChunkHeader{0, 0}},
+      next_p{nullptr} {
       data = new char[sz];
       assert(data != nullptr);
       
       // The end pointer
       end_data = data + sz;
-      
-      // next pointer is always nullptr since we only append a
-      // chunk to the end of the delta chain
-      next_p = nullptr;
-      
-      // Ref count = 0; starting offset = 0
-      header.store({0, 0});
       
       delete_epoch = static_cast<decltype(delete_epoch)>(-1);
       
@@ -97,16 +104,21 @@ class VarLenPool {
      * This function issues CAS to contend with other threads trying to
      * allocate from this chunk. Return the base address and increase 
      * ref count if it succeeds; o.w. it returns nullptr and nothing is changed
+     *
+     * Note that sz already contains the 8 byte back ref pointer field
      */
     void *Allocate(size_t sz) {
       ChunkHeader expected_header = header.load();
       
       // Either out of memory in this chunk or succeed
       while(1) {
+        // Note that sz already contains the 8 byte back ref pointer
+        uint32_t new_offset = expected_header.offset + sz;
+        
         // This is the base address for next allocation
         // This could not be larger than the end address + 1 of the
         // current chunk
-        char *next_base = expected_header.offset + sz + 8;
+        char *next_base = data + new_offset;
         
         if(next_base > end_data) {
           return nullptr; 
@@ -114,11 +126,11 @@ class VarLenPool {
         
         // We will update this and CAS this into the chunk header
         ChunkHeader new_header{expected_header.ref_count + 1,
-                               expected_header.offset + sz + 8};
+                               new_offset};
         
         // If success this will exchange into expected_header                     
         bool ret = \
-          header.compare_exchange_strong(expetced_header, new_header);
+          header.compare_exchange_strong(expected_header, new_header);
         
         // If the allocation is successful just return the address
         if(ret == true) {
@@ -161,10 +173,13 @@ class VarLenPool {
     Chunk *chunk_p = new Chunk{sz};
     assert(chunk_p != nullptr);
     
+    Chunk *expected_chunk = nullptr;
+    
     // CAS. If it fails then some thread has already appended a new chunk
     // so instead we just retry
     bool ret = \
-      appending_tail_p->next_p->compare_exchange_strong(nullptr, chunk_p);
+      appending_tail_p.load()->next_p.compare_exchange_strong(expected_chunk, 
+                                                              chunk_p);
     if(ret == false) {
       delete chunk_p;
       
@@ -174,7 +189,7 @@ class VarLenPool {
     // This does not matter since we always CAS with expected being nullptr
     // before we change this pointer the CAS through appending_tail_p
     // would always fail
-    appending_tail_p->store(chunk_p);
+    appending_tail_p.store(chunk_p);
     
     return chunk_p;
   }
@@ -198,7 +213,7 @@ class VarLenPool {
     // After this all allocation sizes are aligned and extended to hold
     // the 8 byte pointer
     
-    Chunk *chunk_p = appending_tail_p->load(); 
+    Chunk *chunk_p = appending_tail_p.load(); 
     while(1) {
       void *p = chunk_p->Allocate(sz);
       if(p == nullptr) {
@@ -206,7 +221,7 @@ class VarLenPool {
         // If allocating new chunk failed - some thread must have
         // already done that, so we just retry
         if(chunk_p == nullptr) {
-          Chunk *chunk_p = appending_tail_p->load();  
+          chunk_p = appending_tail_p.load();  
         }
         
         continue;
@@ -257,7 +272,7 @@ class VarLenPool {
   /*
    * Constructor
    */
-  ValLenPool(size_t p_chunk_size) :
+  VarLenPool(size_t p_chunk_size) :
     chunk_size{p_chunk_size} {
     // Allocate a chunk of standard size
     scanning_head_p = new Chunk{chunk_size};
