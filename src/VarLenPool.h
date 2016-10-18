@@ -169,7 +169,42 @@ class VarLenPool {
       return nullptr;
     } 
     
+    // This does not matter since we always CAS with expected being nullptr
+    // before we change this pointer the CAS through appending_tail_p
+    // would always fail
+    appending_tail_p->store(chunk_p);
+    
     return chunk_p;
+  }
+  
+ public:
+  static const size_t ALIGNMENT = 8;
+   
+  /*
+   * Allocate() - Allocates a 8 byte aligned memory with little alloc/free
+   *              overhead
+   */
+  void *Allocate(size_t sz) {
+    // Promote it to the nearest 8 byte boundary
+    sz = (sz + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+    
+    Chunk *chunk_p = appending_tail_p->load(); 
+    while(1) {
+      void *p = chunk_p->Allocate(sz);
+      if(p == nullptr) {
+        chunk_p = AllocateChunk(sz);
+        if(chunk_p == nullptr) {
+          Chunk *chunk_p = appending_tail_p->load();  
+        }
+        
+        continue;
+      }
+      
+      return p; 
+    }
+    
+    assert(false);
+    return nullptr;
   }
 
  private:  
@@ -178,7 +213,7 @@ class VarLenPool {
   uint64_t chunk_size;
   
   // This is the tail we append chunk to
-  Chunk *appending_tail_p;
+  std::atomic<Chunk *> appending_tail_p;
   // This is the head we start scanning
   Chunk *scanning_head_p;
 };
