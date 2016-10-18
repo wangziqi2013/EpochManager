@@ -4,6 +4,7 @@
  */
 
 #include "test_suite.h"
+#include "../src/VarLenPool.h"
 
 /*
  * VarLenPoolBasicTest() - This function allocates a series of memory
@@ -13,7 +14,7 @@
 void VarLenPoolBasicTest() {
   PrintTestName("VarLenPoolBasicTest");
   
-  static const iter = 10;
+  static const int iter = 10;
   
   void *p_list[iter];
   
@@ -39,5 +40,5 @@ void VarLenPoolBasicTest() {
 int main() {
   VarLenPoolBasicTest();
   
-  return;
+  return 0;
 }
