@@ -10,6 +10,9 @@
  */
 class VarLenPool {
  private:
+   // This is the size of each chunk if the requested allocation size is
+   // less than this
+   uint64_t chunk_size;
    
   /*
    * class ChunkHeader - The header of a chunk being accessed and CAS-ed
@@ -134,6 +137,23 @@ class VarLenPool {
     }
   };
   
+  /*
+   * AllocateChunk() - Allocate a chunk of size at least sz, usually much
+   *                   more larger to amortize memory allocation cost
+   *
+   * This function allocates a chunk of size at least sz + 8 (one extra
+   * pointer for the extra backward reference), but if sz is lower than a
+   * threshold it falls back to malloc()
+   */
+  Chunk *AllocateChunk(size_t sz) {
+    if(sz > chunk_size) {
+      sz = sz + sizeof(Mem);
+    } else {
+      // This is the normal chunk size for any allocation size smaller
+      // than the chunk size
+      sz = chunk_size; 
+    }
+  }
 };
 
 #endif
