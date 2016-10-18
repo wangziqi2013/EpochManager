@@ -69,6 +69,23 @@ class VarLenPool {
     char *end_data;
     
     /*
+     * Constructor
+     */
+    Chunk(size_t sz) {
+      data = new char[sz];
+      assert(data != nullptr);
+      
+      // The end pointer
+      end_data = data + sz;
+      
+      // next pointer is always nullptr since we only append a
+      // chunk to the end of the delta chain
+      next_p = nullptr;
+      
+      header.store({0, 0});
+    }
+    
+    /*
      * Allocate() - Allocate a memory of size sz from this chunk
      *
      * This function issues CAS to contend with other threads trying to
