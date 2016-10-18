@@ -82,7 +82,12 @@ class VarLenPool {
       // chunk to the end of the delta chain
       next_p = nullptr;
       
+      // Ref count = 0; starting offset = 0
       header.store({0, 0});
+      
+      delete_epoch = static_cast<decltype(delete_epoch)>(-1);
+      
+      return;
     }
     
     /*
@@ -95,6 +100,7 @@ class VarLenPool {
     void *Allocate(size_t sz) {
       ChunkHeader expected_header = header.load();
       
+      // Either out of memory in this chunk or succeed
       while(1) {
         // This is the base address for next allocation
         // This could not be larger than the end address + 1 of the
@@ -119,7 +125,7 @@ class VarLenPool {
           // Set the header
           mem_p->header_p = &header;
           
-          return mem_p->data;
+          return reinterpret_cast<void *>(mem_p->data);
         }
       } // while(1)
       
