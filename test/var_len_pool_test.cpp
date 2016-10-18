@@ -23,6 +23,8 @@ void VarLenPoolBasicTest() {
   for(int i = 1;i <= 10;i++) {
     p_list[i - 1] = vlp.Allocate(i);
     memset(p_list[i - 1], i, i);
+    
+    dbg_printf("Allocating mem of size = %d\n", i);
   }
   
   // Verify for correctness
@@ -31,6 +33,8 @@ void VarLenPoolBasicTest() {
     for(int j = 0;j < i;j++) {
       assert(p[j] == static_cast<char>(i));
     }
+    
+    dbg_printf("Checking content of size = %d\n", i);
   }
   
   return; 
