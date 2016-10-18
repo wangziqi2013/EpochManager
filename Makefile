@@ -27,6 +27,10 @@ arg_test: ./build/test_suite.o ./test/arg_test.cpp
 	$(CXX) $(CXX_FLAGS) $^ -o ./bin/arg_test
 	@ln -sf ./bin/arg_test ./arg_test-bin
 
+var_len_pool_test: ./build/test_suite.o ./test/var_len_pool_test.cpp ./src/VarLenPool.cpp
+	$(CXX) $(CXX_FLAGS) $^ -o ./bin/var_len_pool_test
+	@ln -sf ./bin/var_len_pool_test ./var_len_pool-bin
+
 ./build/test_suite.o: ./test/test_suite.cpp
 	$(CXX) $(CXX_FLAGS) $^ -c -o ./build/test_suite.o
 
