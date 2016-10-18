@@ -151,9 +151,7 @@ class VarLenPool {
    * the newly allocated chunk pointer is returned as an indication of success
    */
   Chunk *AllocateChunk(size_t sz) {
-    if(sz > chunk_size) {
-      sz = sz + sizeof(Mem);
-    } else {
+    if(sz <= chunk_size) {
       // This is the normal chunk size for any allocation size smaller
       // than the chunk size
       sz = chunk_size; 
@@ -192,6 +190,13 @@ class VarLenPool {
     // Promote it to the nearest 8 byte boundary
     sz = (sz + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
     assert((sz % ALIGNMENT == 0));
+    
+    // For every chunk there is a 8 byte field pointer to
+    // the chunk it is from
+    sz += 8;
+    
+    // After this all allocation sizes are aligned and extended to hold
+    // the 8 byte pointer
     
     Chunk *chunk_p = appending_tail_p->load(); 
     while(1) {
