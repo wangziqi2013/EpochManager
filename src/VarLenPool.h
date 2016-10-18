@@ -32,6 +32,8 @@ class VarLenPool {
     {}
   };
   
+  class Chunk;
+  
   /*
    * class Mem - Represents the memory we actually allocate to caller
    *
@@ -40,7 +42,7 @@ class VarLenPool {
    */
   class Mem {
    public:
-    ChunkHeader *header_p;
+    Chunk *chunk_p;
     // This points to the next available byte
     char data[0]; 
   };
@@ -120,9 +122,11 @@ class VarLenPool {
         
         // If the allocation is successful just return the address
         if(ret == true) {
-          Mem *mem_p = reinterpret_cast<Mem *>(expected_header.offset);
-          // Set the header
-          mem_p->header_p = &header;
+          // If CAS succeeds then we have reserved the space, and could
+          // use the header content just read from the chunk
+          Mem *mem_p = reinterpret_cast<Mem *>(data + expected_header.offset);
+          // Set the chunk backward pointer
+          mem_p->chunk_p = this;
           
           return reinterpret_cast<void *>(mem_p->data);
         }
@@ -221,16 +225,28 @@ class VarLenPool {
     // Go to the actual starting address of the allocated memory piece
     Mem *mem_p = reinterpret_cast<Mem *>(p) - 1;
     // Load the chunk header field at the header of the chunk
-    ChunkHeader header = mem_p->header_p->load();
+    ChunkHeader header = mem_p->chunk_p->header.load();
     
     // This must succeed - either the chunk becomes full and some thread
     // creates a new chunk, st. no thread could modify the header causing
     // CAS to fail, or it succeeds
     while(1) {
-      mem_p->header_p->compare_exchange_strong(header, 
-                                               {header.ref_count - 1, 
-                                                header.offset});
-    }
+      // Decrease the ref count until succees
+      // If return false then header is updated to reflect the newest
+      // and we just retry always with ref_count - 1
+      bool ret = \
+        mem_p->chunk_p->header.compare_exchange_strong(header, 
+                                                       {header.ref_count - 1, 
+                                                        header.offset});
+      if(ret == true) {
+        // TODO: Refresh delete epoch here
+        //mem_p->chunk_p->delete_epoch = ...
+        
+        break; 
+      }
+    } // while not successful
+    
+    return;
   }
 
  private:  
